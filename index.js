@@ -161,30 +161,32 @@ client.on('interactionCreate', async (interaction) => {
   // ===== RANK =====
   if (interaction.commandName === 'rank') {
 
-    const ranking = Object.entries(gastos)
-      .sort((a, b) => b[1] - a[1]);
+  await interaction.deferReply(); // 🔥 MUITO IMPORTANTE
 
-    let texto = '';
+  const ranking = Object.entries(gastos)
+    .sort((a, b) => b[1] - a[1]);
 
-    for (let i = 0; i < ranking.length; i++) {
-      const userId = ranking[i][0];
-      const valor = ranking[i][1];
+  let texto = '';
 
-      const link = `https://kaio-rank.vercel.app/?id=${userId}`;
+  for (let i = 0; i < ranking.length; i++) {
+    const userId = ranking[i][0];
+    const valor = ranking[i][1];
 
-      const user = await client.users.fetch(userId).catch(() => null);
-      const nome = user ? `[${user.username}](${link})` : 'Usuário';
+    const link = `https://kaio-rank.vercel.app/?id=${userId}`;
 
-      texto += `**${i + 1}.** ${nome}\n💰 R$${valor}\n\n`;
-    }
+    const user = await client.users.fetch(userId).catch(() => null);
+    const nome = user ? `[${user.username}](${link})` : 'Usuário';
 
-    const embed = new EmbedBuilder()
-      .setTitle('Top Clientes')
-      .setDescription(texto)
-      .setColor('#2b2d31');
-
-    return interaction.reply({ embeds: [embed] });
+    texto += `**${i + 1}.** ${nome}\n💰 R$${valor}\n\n`;
   }
+
+  const embed = new EmbedBuilder()
+    .setTitle('Top Clientes')
+    .setDescription(texto)
+    .setColor('#2b2d31');
+
+  return interaction.editReply({ embeds: [embed] }); // 🔥 troque reply por editReply
+}
 });
 
 client.login(TOKEN);
