@@ -255,14 +255,15 @@ if (interaction.commandName === 'removergasto') {
 
           let nome;
 
+let nome;
+
 try {
-  const user = await client.users.fetch(userId);
+  const user = await interaction.guild.members.fetch(userId);
   nome = `<@${user.id}>`;
 } catch {
   nome = `ID: ${userId}`;
 }
-
-          texto += `${medalha} <@!${userId}>\n💰 Total: **R$${valor}**\n\n`;
+          texto += `${medalha} ${nome}\n💰 Total: **R$${valor}**\n\n`;
         }
       }
 
