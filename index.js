@@ -195,7 +195,10 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
   }
   
   // ===== REMOVER GASTO =====
-  if (interaction.commandName === 'removergasto') {
+  if if (interaction.commandName === 'removergasto') {
+  console.log('REMOVER FUNCIONOU');
+  return interaction.reply('ok');
+}
 
     if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
       return interaction.reply({ content: 'Só administradores podem usar esse comando.', ephemeral: true });
