@@ -170,7 +170,7 @@ client.on('interactionCreate', async (interaction) => {
       const userId = ranking[i][0];
       const valor = ranking[i][1];
 
-      const link = `https://kaio-rank.vercel.app/=${userId}`;
+      const link = `https://kaio-rank.vercel.app/?id=${userId}`;
 
       const user = await client.users.fetch(userId).catch(() => null);
       const nome = user ? `[${user.username}](${link})` : 'Usuário';
