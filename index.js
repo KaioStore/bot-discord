@@ -158,6 +158,29 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
+  // ===== REMOVER GASTO =====
+if (interaction.commandName === 'remover') {
+
+  const user = interaction.options.getUser('usuario');
+  const valor = interaction.options.getNumber('valor');
+
+  if (!gastos[user.id]) gastos[user.id] = 0;
+
+  gastos[user.id] -= valor;
+
+  if (gastos[user.id] < 0) gastos[user.id] = 0;
+
+  const member = await interaction.guild.members.fetch(user.id);
+  await atualizarCargos(member, gastos[user.id], interaction);
+
+  salvarGastos();
+
+  return interaction.reply({
+    content: `🗑️ Gasto removido de ${user.username}.`,
+    ephemeral: true
+  });
+}
+
   // ===== RANK =====
   if (interaction.commandName === 'rank') {
 
