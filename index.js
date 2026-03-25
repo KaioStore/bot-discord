@@ -253,9 +253,11 @@ if (interaction.commandName === 'rank') {
         else if (pos === 2) medalha = '🥈';
         else if (pos === 3) medalha = '🥉';
 
+        // 🔥 PEGA O NOME (SEM ID)
         const user = await client.users.fetch(userId).catch(() => null);
         const nome = user ? user.username : 'Usuário';
 
+        // 🔥 CARGOS VIP
         let cargo = '';
         if (valor >= 1000) cargo = '💎 VIP | ';
         else if (valor >= 500) cargo = '🥇 Ouro | ';
@@ -268,7 +270,7 @@ if (interaction.commandName === 'rank') {
 
     texto += `\n> Continue comprando para subir no ranking e ganhar benefícios!`;
 
-    // 🔥 Avatar do Top 1
+    // 🔥 AVATAR DO TOP 1
     let avatarTop1 = null;
 
     if (ranking.length > 0) {
@@ -279,7 +281,7 @@ if (interaction.commandName === 'rank') {
     }
 
     return new EmbedBuilder()
-      .setTitle('Top Clientes') // SEM 🏆
+      .setTitle('Top Clientes')
       .setDescription(texto)
       .setColor('#2b2d31')
       .setThumbnail(avatarTop1)
