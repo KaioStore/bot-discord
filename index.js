@@ -121,7 +121,7 @@ client.on('ready', () => {
 // ===== COMANDOS =====
 client.on('interactionCreate', async (interaction) => {
 console.log('Recebi comando:', interaction.commandName);
-  
+
   if (!interaction.isChatInputCommand()) return;
 
   // ===== AVALIAR =====
@@ -193,7 +193,37 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       ephemeral: true
     });
   }
+  
+  // ===== REMOVER GASTO =====
+  if (interaction.commandName === 'removergasto') {
 
+    if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+      return interaction.reply({ content: 'Só administradores podem usar esse comando.', ephemeral: true });
+    }
+
+    const user = interaction.options.getUser('usuario');
+    const valor = interaction.options.getNumber('valor');
+
+    if (!gastos[user.id]) gastos[user.id] = 0;
+
+    gastos[user.id] -= valor;
+
+    // 🔥 CORREÇÃO: remover do ranking se zerar
+    if (gastos[user.id] <= 0) {
+      delete gastos[user.id];
+    }
+
+    const member = await interaction.guild.members.fetch(user.id);
+    await atualizarCargos(member, gastos[user.id] || 0, interaction);
+
+    salvarGastos();
+
+    return interaction.reply({
+      content: `💸 Gasto removido de ${user.username}.`,
+      ephemeral: true
+    });
+  }
+  
   // ===== RANK =====
   if (interaction.commandName === 'rank') {
 
