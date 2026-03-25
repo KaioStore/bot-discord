@@ -22,7 +22,7 @@ app.listen(3000, () => {
 });
 
 // ===== CONFIG =====
-const TOKEN = '';
+const TOKEN = process.env.TOKEN; // 🔥 ALTERADO AQUI
 const CANAL_AVALIACOES = '1411493010268753930';
 
 const client = new Client({
@@ -112,7 +112,6 @@ ${cargoAtual.emoji} Novo cargo: **${cargoAtual.nome}**
 client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
 
-  // 🔥 ADICIONA ISSO AQUI
   client.user.setPresence({
     activities: [{ name: 'Kaio Store', type: 0 }],
     status: 'online'
@@ -196,85 +195,83 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
   }
 
   // ===== RANK =====
-// ===== RANK =====
-if (interaction.commandName === 'rank') {
+  if (interaction.commandName === 'rank') {
 
-  const ranking = Object.entries(gastos)
-    .sort((a, b) => b[1] - a[1]);
+    const ranking = Object.entries(gastos)
+      .sort((a, b) => b[1] - a[1]);
 
-  const porPagina = 10;
-  let pagina = 0;
+    const porPagina = 10;
+    let pagina = 0;
 
-  async function gerarEmbed(p) {
-    const totalPaginas = Math.max(1, Math.ceil(ranking.length / porPagina));
-    const inicio = p * porPagina;
-    const dados = ranking.slice(inicio, inicio + porPagina);
+    async function gerarEmbed(p) {
+      const totalPaginas = Math.max(1, Math.ceil(ranking.length / porPagina));
+      const inicio = p * porPagina;
+      const dados = ranking.slice(inicio, inicio + porPagina);
 
-    let texto = '';
+      let texto = '';
 
-    if (dados.length === 0) {
-      texto = 'Ainda não há ninguém no ranking.';
-    } else {
-      for (let i = 0; i < dados.length; i++) {
-        const userId = dados[i][0];
-        const valor = dados[i][1];
+      if (dados.length === 0) {
+        texto = 'Ainda não há ninguém no ranking.';
+      } else {
+        for (let i = 0; i < dados.length; i++) {
+          const userId = dados[i][0];
+          const valor = dados[i][1];
 
-        const pos = inicio + i + 1;
+          const pos = inicio + i + 1;
 
-        let medalha = `${pos}.`;
-        if (pos === 1) medalha = '🥇';
-        else if (pos === 2) medalha = '🥈';
-        else if (pos === 3) medalha = '🥉';
+          let medalha = `${pos}.`;
+          if (pos === 1) medalha = '🥇';
+          else if (pos === 2) medalha = '🥈';
+          else if (pos === 3) medalha = '🥉';
 
-        // ✅ MENÇÃO (FUNCIONA NO EMBED)
-        const nome = `<@${userId}>`;
+          const nome = `<@${userId}>`;
 
-        texto += `${medalha} ${nome}\n💰 Total: **R$${valor}**\n\n`;
+          texto += `${medalha} ${nome}\n💰 Total: **R$${valor}**\n\n`;
+        }
       }
+
+      texto += `\n> Continue comprando para subir no ranking e ganhar benefícios!`;
+
+      return new EmbedBuilder()
+        .setTitle('Top Clientes')
+        .setDescription(texto)
+        .setColor('#2b2d31')
+        .setFooter({ text: `Página ${p + 1}/${totalPaginas}` });
     }
 
-    texto += `\n> Continue comprando para subir no ranking e ganhar benefícios!`;
+    const row = {
+      type: 1,
+      components: [
+        { type: 2, style: 2, label: '‹ Anterior', custom_id: 'anterior' },
+        { type: 2, style: 2, label: 'Próximo ›', custom_id: 'proximo' }
+      ]
+    };
 
-    return new EmbedBuilder()
-      .setTitle('Top Clientes')
-      .setDescription(texto)
-      .setColor('#2b2d31')
-      .setFooter({ text: `Página ${p + 1}/${totalPaginas}` });
-  }
-
-  const row = {
-    type: 1,
-    components: [
-      { type: 2, style: 2, label: '‹ Anterior', custom_id: 'anterior' },
-      { type: 2, style: 2, label: 'Próximo ›', custom_id: 'proximo' }
-    ]
-  };
-
-  const msg = await interaction.reply({
-    embeds: [await gerarEmbed(pagina)],
-    components: [row],
-    allowedMentions: { parse: ['users'] },
-    fetchReply: true
-  });
-
-  const collector = msg.createMessageComponentCollector({ time: 600000 });
-
-  collector.on('collect', async i => {
-    if (i.user.id !== interaction.user.id) {
-      return i.reply({ content: 'Só quem executou pode usar.', ephemeral: true });
-    }
-
-    const maxPaginas = Math.ceil(ranking.length / porPagina);
-
-    if (i.customId === 'anterior' && pagina > 0) pagina--;
-    if (i.customId === 'proximo' && pagina < maxPaginas - 1) pagina++;
-
-    await i.update({
+    const msg = await interaction.reply({
       embeds: [await gerarEmbed(pagina)],
-      components: [row]
+      components: [row],
+      allowedMentions: { parse: ['users'] },
+      fetchReply: true
     });
-  });
-}
+
+    const collector = msg.createMessageComponentCollector({ time: 600000 });
+
+    collector.on('collect', async i => {
+      if (i.user.id !== interaction.user.id) {
+        return i.reply({ content: 'Só quem executou pode usar.', ephemeral: true });
+      }
+
+      const maxPaginas = Math.ceil(ranking.length / porPagina);
+
+      if (i.customId === 'anterior' && pagina > 0) pagina--;
+      if (i.customId === 'proximo' && pagina < maxPaginas - 1) pagina++;
+
+      await i.update({
+        embeds: [await gerarEmbed(pagina)],
+        components: [row]
+      });
+    });
+  }
 });
 
 client.login(TOKEN);
