@@ -223,7 +223,7 @@ if (interaction.commandName === 'removergasto') {
   });
 }
   
-  // ===== RANK =====
+ // ===== RANK =====
 if (interaction.commandName === 'rank') {
 
   const ranking = Object.entries(gastos)
@@ -253,19 +253,36 @@ if (interaction.commandName === 'rank') {
         else if (pos === 2) medalha = '🥈';
         else if (pos === 3) medalha = '🥉';
 
-        // 🔥 MENÇÃO FUNCIONANDO
-        const nome = `<@${userId}>`;
+        const user = await client.users.fetch(userId).catch(() => null);
+        const nome = user ? user.username : 'Usuário';
 
-        texto += `${medalha} ${nome}\n💰 Total: **R$${valor}**\n\n`;
+        let cargo = '';
+        if (valor >= 1000) cargo = '💎 VIP | ';
+        else if (valor >= 500) cargo = '🥇 Ouro | ';
+        else if (valor >= 300) cargo = '🥈 Prata | ';
+        else if (valor >= 100) cargo = '🥉 Bronze | ';
+
+        texto += `${medalha} ${cargo}**${nome}**\n💰 Total: **R$${valor}**\n\n`;
       }
     }
 
     texto += `\n> Continue comprando para subir no ranking e ganhar benefícios!`;
 
+    // 🔥 Avatar do Top 1
+    let avatarTop1 = null;
+
+    if (ranking.length > 0) {
+      const userTop1 = await client.users.fetch(ranking[0][0]).catch(() => null);
+      if (userTop1) {
+        avatarTop1 = userTop1.displayAvatarURL({ dynamic: true });
+      }
+    }
+
     return new EmbedBuilder()
-      .setTitle('Top Clientes')
+      .setTitle('Top Clientes') // SEM 🏆
       .setDescription(texto)
       .setColor('#2b2d31')
+      .setThumbnail(avatarTop1)
       .setFooter({ text: `Página ${p + 1}/${totalPaginas}` });
   }
 
@@ -280,9 +297,6 @@ if (interaction.commandName === 'rank') {
   const msg = await interaction.reply({
     embeds: [await gerarEmbed(pagina)],
     components: [row],
-    allowedMentions: {
-      parse: ['users'] // 🔥 ISSO FAZ A MENÇÃO FUNCIONAR
-    },
     fetchReply: true
   });
 
