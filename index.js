@@ -138,78 +138,92 @@ client.on('interactionCreate', async (interaction) => {
 
   if (!interaction.isChatInputCommand()) return;
 
-  // ===== GASTAR =====
-  if (interaction.commandName === 'gastar') {
+  try {
 
-    const user = interaction.options.getUser('usuario');
-    const valor = interaction.options.getNumber('valor');
+    // ===== GASTAR =====
+    if (interaction.commandName === 'gastar') {
 
-    if (!gastos[user.id]) gastos[user.id] = 0;
-    gastos[user.id] += valor;
+      const user = interaction.options.getUser('usuario');
+      const valor = interaction.options.getNumber('valor');
 
-    const member = await interaction.guild.members.fetch(user.id);
-    await atualizarCargos(member, gastos[user.id], interaction);
+      if (!gastos[user.id]) gastos[user.id] = 0;
+      gastos[user.id] += valor;
 
-    salvarGastos();
+      const member = await interaction.guild.members.fetch(user.id);
+      await atualizarCargos(member, gastos[user.id], interaction);
 
-    return interaction.reply({
-      content: `💸 Gasto adicionado para ${user.username}.`,
-      ephemeral: true
-    });
+      salvarGastos();
+
+      return interaction.reply({
+        content: `💸 Gasto adicionado para ${user.username}.`,
+        ephemeral: true
+      });
+    }
+
+    // ===== REMOVER GASTO =====
+    if (interaction.commandName === 'removergasto') {
+
+      const user = interaction.options.getUser('usuario');
+      const valor = interaction.options.getNumber('valor');
+
+      if (!gastos[user.id]) gastos[user.id] = 0;
+
+      gastos[user.id] -= valor;
+      if (gastos[user.id] < 0) gastos[user.id] = 0;
+
+      const member = await interaction.guild.members.fetch(user.id);
+      await atualizarCargos(member, gastos[user.id], interaction);
+
+      salvarGastos();
+
+      return interaction.reply({
+        content: `💸 Valor removido de ${user.username}.`,
+        ephemeral: true
+      });
+    }
+
+    // ===== RANK =====
+    if (interaction.commandName === 'rank') {
+
+      await interaction.deferReply();
+
+      const ranking = Object.entries(gastos)
+        .sort((a, b) => b[1] - a[1]);
+
+      let texto = '';
+
+      for (let i = 0; i < ranking.length; i++) {
+        const userId = ranking[i][0];
+        const valor = ranking[i][1];
+
+        const link = `https://kaio-rank.vercel.app/?id=${userId}`;
+
+        const user = await client.users.fetch(userId).catch(() => null);
+        const nome = user ? `[${user.username}](${link})` : 'Usuário';
+
+        texto += `**${i + 1}.** ${nome}\n💰 R$${valor}\n\n`;
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle('Top Clientes')
+        .setDescription(texto)
+        .setColor('#2b2d31');
+
+      return interaction.editReply({ embeds: [embed] });
+    }
+
+  } catch (err) {
+    console.error(err);
+
+    if (interaction.deferred || interaction.replied) {
+      interaction.editReply({ content: 'Erro ao executar comando.' }).catch(() => {});
+    } else {
+      interaction.reply({ content: 'Erro ao executar comando.', ephemeral: true }).catch(() => {});
+    }
   }
 
-  // ===== REMOVER GASTO =====
-if (interaction.commandName === 'remover') {
+});
 
-  const user = interaction.options.getUser('usuario');
-  const valor = interaction.options.getNumber('valor');
-
-  if (!gastos[user.id]) gastos[user.id] = 0;
-
-  gastos[user.id] -= valor;
-
-  if (gastos[user.id] < 0) gastos[user.id] = 0;
-
-  const member = await interaction.guild.members.fetch(user.id);
-  await atualizarCargos(member, gastos[user.id], interaction);
-
-  salvarGastos();
-
-  return interaction.reply({
-    content: `🗑️ Gasto removido de ${user.username}.`,
-    ephemeral: true
-  });
-}
-
-  // ===== RANK =====
-  if (interaction.commandName === 'rank') {
-
-  await interaction.deferReply();
-
-  const ranking = Object.entries(gastos)
-    .sort((a, b) => b[1] - a[1]);
-
-  let texto = '';
-
-  for (let i = 0; i < ranking.length; i++) {
-    const userId = ranking[i][0];
-    const valor = ranking[i][1];
-
-    const link = `https://kaio-rank.vercel.app/?id=${userId}`;
-
-    const user = await client.users.fetch(userId).catch(() => null);
-    const nome = user ? `[${user.username}](${link})` : 'Usuário';
-
-    texto += `**${i + 1}.** ${nome}\n💰 R$${valor}\n\n`;
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle('Top Clientes')
-    .setDescription(texto)
-    .setColor('#2b2d31');
-
-  return interaction.editReply({ embeds: [embed] });
-}
 });
 
 client.login(TOKEN);
