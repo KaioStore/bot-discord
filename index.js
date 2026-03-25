@@ -224,7 +224,5 @@ client.on('interactionCreate', async (interaction) => {
 
 });
 
-});
-
 client.login(TOKEN);
 setInterval(() => {}, 1000);
