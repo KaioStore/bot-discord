@@ -195,7 +195,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
   }
   
   // ===== REMOVER GASTO =====
-  if if (interaction.commandName === 'removergasto') {
+  if (interaction.commandName === 'removergasto') {
   console.log('REMOVER FUNCIONOU');
   return interaction.reply('ok');
 }
