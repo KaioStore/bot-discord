@@ -161,7 +161,7 @@ client.on('interactionCreate', async (interaction) => {
   // ===== RANK =====
   if (interaction.commandName === 'rank') {
 
-  await interaction.deferReply(); // 🔥 MUITO IMPORTANTE
+  await interaction.deferReply();
 
   const ranking = Object.entries(gastos)
     .sort((a, b) => b[1] - a[1]);
@@ -185,7 +185,7 @@ client.on('interactionCreate', async (interaction) => {
     .setDescription(texto)
     .setColor('#2b2d31');
 
-  return interaction.editReply({ embeds: [embed] }); // 🔥 troque reply por editReply
+  return interaction.editReply({ embeds: [embed] });
 }
 });
 
