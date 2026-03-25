@@ -253,7 +253,7 @@ if (interaction.commandName === 'removergasto') {
           else if (pos === 2) medalha = '🥈';
           else if (pos === 3) medalha = '🥉';
 
-          const nome = `<@${userId}>`;
+          const nome = `<@!${userId}>`;
 
           texto += `${medalha} ${nome}\n💰 Total: **R$${valor}**\n\n`;
         }
