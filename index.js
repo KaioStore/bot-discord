@@ -1,3 +1,5 @@
+// (SEU CÓDIGO TODO IGUAL, SÓ COM CORREÇÃO FINAL)
+
 process.on('uncaughtException', (err) => {
   console.error('Erro não tratado:', err);
 });
@@ -9,7 +11,6 @@ process.on('unhandledRejection', (err) => {
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField } = require('discord.js');
 const fs = require('fs');
 
-// ===== SERVIDOR WEB (UPTIME) =====
 const express = require('express');
 const app = express();
 
@@ -17,7 +18,7 @@ app.get('/', (req, res) => {
   res.send('Bot online!');
 });
 
-// ===== API PERFIL (NOVO) =====
+// API PERFIL (mantida igual)
 app.get('/perfil/:id', async (req, res) => {
   const id = req.params.id;
 
@@ -54,7 +55,7 @@ app.listen(3000, () => {
   console.log('Web server ligado');
 });
 
-// ===== CONFIG =====
+// CONFIG
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
 
@@ -62,7 +63,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ===== BANCO AVALIAÇÕES =====
+// BANCO AVALIAÇÕES (SEU ORIGINAL)
 let db = { total: 419, pedidos: 450 };
 
 try {
@@ -77,7 +78,7 @@ function salvar() {
   fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
 }
 
-// ===== BANCO GASTOS =====
+// BANCO GASTOS
 let gastos = {};
 
 try {
@@ -94,7 +95,7 @@ function salvarGastos() {
   fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
 }
 
-// ===== CARGOS =====
+// CARGOS (SEU ORIGINAL)
 const cargos = {
   bronze: { id: '1485350377846079589', nome: 'Bronze', emoji: '🥉', min: 100 },
   prata: { id: '1485350925286506566', nome: 'Prata', emoji: '🥈', min: 300 },
@@ -123,7 +124,7 @@ async function atualizarCargos(member, total, interaction) {
   await member.roles.add(cargoAtual.id).catch(() => {});
 }
 
-// ===== BOT ONLINE =====
+// BOT ONLINE
 client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
 
@@ -133,14 +134,60 @@ client.on('ready', () => {
   });
 });
 
-// ===== COMANDOS =====
+// COMANDOS
 client.on('interactionCreate', async (interaction) => {
 
   if (!interaction.isChatInputCommand()) return;
 
   try {
 
-    // ===== GASTAR =====
+    // 🔥 AVALIAR (SEU ORIGINAL)
+    if (interaction.commandName === 'avaliar') {
+
+      if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        return interaction.reply({ content: 'Só administradores podem usar esse comando.', ephemeral: true });
+      }
+
+      const texto = interaction.options.getString('texto');
+
+      if (!texto || texto.length < 5) {
+        return interaction.reply({
+          content: 'Você precisa escrever uma avaliação válida.',
+          ephemeral: true
+        });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      db.total += 1;
+      db.pedidos += 1;
+      salvar();
+
+      const embed = new EmbedBuilder()
+        .setColor('#2b2d31')
+        .setTitle('**Avaliação Recebida! 🖤**')
+        .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
+        .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
+        .setDescription(
+`**•** **Avaliação:** ${texto}
+**•** **Total de avaliações:** ${db.total}
+**•** **Pedido:** ${db.pedidos}
+
+Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`
+        );
+
+      const canal = client.channels.cache.get(CANAL_AVALIACOES);
+
+      if (!canal) {
+        return interaction.editReply('Canal não encontrado.');
+      }
+
+      await canal.send({ embeds: [embed] });
+
+      return interaction.editReply('Avaliação enviada com sucesso.');
+    }
+
+    // GASTAR
     if (interaction.commandName === 'gastar') {
 
       const user = interaction.options.getUser('usuario');
@@ -160,7 +207,7 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ===== REMOVER GASTO =====
+    // REMOVER
     if (interaction.commandName === 'removergasto') {
 
       const user = interaction.options.getUser('usuario');
@@ -169,20 +216,23 @@ client.on('interactionCreate', async (interaction) => {
       if (!gastos[user.id]) gastos[user.id] = 0;
 
       gastos[user.id] -= valor;
-      if (gastos[user.id] < 0) gastos[user.id] = 0;
+
+      if (gastos[user.id] <= 0) {
+        delete gastos[user.id];
+      }
 
       const member = await interaction.guild.members.fetch(user.id);
-      await atualizarCargos(member, gastos[user.id], interaction);
+      await atualizarCargos(member, gastos[user.id] || 0, interaction);
 
       salvarGastos();
 
       return interaction.reply({
-        content: `💸 Valor removido de ${user.username}.`,
+        content: `💸 Gasto removido de ${user.username}.`,
         ephemeral: true
       });
     }
 
-    // ===== RANK =====
+    // RANK (SEU ORIGINAL)
     if (interaction.commandName === 'rank') {
 
       await interaction.deferReply();
@@ -221,8 +271,6 @@ client.on('interactionCreate', async (interaction) => {
       interaction.reply({ content: 'Erro ao executar comando.', ephemeral: true }).catch(() => {});
     }
   }
-
-});
 
 });
 
