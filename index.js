@@ -279,6 +279,7 @@ if (interaction.commandName === 'removergasto') {
     const msg = await interaction.reply({
   embeds: [await gerarEmbed(pagina)],
   components: [row],
+  allowedMentions: { users: ranking.map(r => r[0]) },
   fetchReply: true
 });
 
