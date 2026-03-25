@@ -262,7 +262,7 @@ try {
   nome = `ID: ${userId}`;
 }
 
-          texto += `${medalha} ${nome}\n💰 Total: **R$${valor}**\n\n`;
+          texto += `${medalha} <@!${userId}>\n💰 Total: **R$${valor}**\n\n`;
         }
       }
 
@@ -286,10 +286,11 @@ try {
     const msg = await interaction.reply({
   embeds: [await gerarEmbed(pagina)],
   components: [row],
-  allowedMentions: { users: ranking.map(r => r[0]) },
+  allowedMentions: {
+    users: ranking.map(r => r[0])
+  },
   fetchReply: true
 });
-
     const collector = msg.createMessageComponentCollector({ time: 600000 });
 
     collector.on('collect', async i => {
