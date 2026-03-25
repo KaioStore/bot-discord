@@ -263,7 +263,16 @@ try {
 } catch {
   nome = `ID: ${userId}`;
 }
-          texto += `${medalha} ${nome}\n💰 Total: **R$${valor}**\n\n`;
+          let nome;
+
+try {
+  const user = await client.users.fetch(userId);
+  nome = user.username;
+} catch {
+  nome = 'Usuário desconhecido';
+}
+
+texto += `${medalha} **${nome}**\n💰 Total: **R$${valor}**\n\n`;
         }
       }
 
