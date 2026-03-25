@@ -277,11 +277,10 @@ if (interaction.commandName === 'removergasto') {
     };
 
     const msg = await interaction.reply({
-      embeds: [await gerarEmbed(pagina)],
-      components: [row],
-      allowedMentions: { parse: ['users'] },
-      fetchReply: true
-    });
+  embeds: [await gerarEmbed(pagina)],
+  components: [row],
+  fetchReply: true
+});
 
     const collector = msg.createMessageComponentCollector({ time: 600000 });
 
