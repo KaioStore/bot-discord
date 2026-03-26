@@ -58,7 +58,12 @@ const commands = [
   // ================= RANK =================
   new SlashCommandBuilder()
     .setName('rank')
-    .setDescription('Ranking de gastos')
+    .setDescription('Ranking de gastos'),
+
+  // 🔥 EMBED (AGORA CERTO)
+  new SlashCommandBuilder()
+    .setName('embed')
+    .setDescription('Criar embed profissional')
 
 ].map(cmd => cmd.toJSON());
 
@@ -78,8 +83,3 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
     console.error(error);
   }
 })();
-
-// ================= EMBED =================
-new SlashCommandBuilder()
-  .setName('embed')
-  .setDescription('Criar embed profissional')
