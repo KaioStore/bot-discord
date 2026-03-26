@@ -246,6 +246,8 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         const userId = ranking[i][0];
         const valor = ranking[i][1];
 
+        texto += `\n> Continue comprando para subir no ranking e ganhar benefícios!`;
+
         const link = `https://kaio-rank.vercel.app/?id=${userId}`;
 
         const user = await client.users.fetch(userId).catch(() => null);
