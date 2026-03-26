@@ -9,11 +9,50 @@ process.on('unhandledRejection', (err) => {
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
+const cors = require('cors'); // ✅ ADICIONADO
 
 const app = express();
+app.use(cors()); // ✅ ADICIONADO
 
 app.get('/', (req, res) => {
   res.send('Bot online!');
+});
+
+// 🔥 API PRO SITE (ESSENCIAL)
+app.get('/perfil/:id', async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const user = await client.users.fetch(id);
+    const total = gastos[id] || 0;
+
+    let vip = null;
+
+    if (total >= 1000) vip = 'Diamante';
+    else if (total >= 500) vip = 'Ouro';
+    else if (total >= 300) vip = 'Prata';
+    else if (total >= 100) vip = 'Bronze';
+
+    const ranking = Object.entries(gastos)
+      .sort((a, b) => b[1] - a[1]);
+
+    const posicao = ranking.findIndex(u => u[0] === id) + 1;
+
+    res.json({
+      nome: user.username,
+      avatar: user.displayAvatarURL({ dynamic: true }),
+      total: total,
+      vip: vip,
+      posicao: posicao || null
+    });
+
+  } catch {
+    res.json({ erro: true });
+  }
+});
+
+app.listen(3000, () => {
+  console.log('Web server ligado');
 });
 
 // ===== CONFIG =====
@@ -26,6 +65,7 @@ const client = new Client({
 
 // ===== BANCO =====
 let db = { total: 419, pedidos: 450 };
+
 if (fs.existsSync('./db.json')) {
   db = JSON.parse(fs.readFileSync('./db.json'));
 }
@@ -35,6 +75,7 @@ function salvar() {
 }
 
 let gastos = {};
+
 if (fs.existsSync('./gastos.json')) {
   gastos = JSON.parse(fs.readFileSync('./gastos.json'));
 }
@@ -42,10 +83,6 @@ if (fs.existsSync('./gastos.json')) {
 function salvarGastos() {
   fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
 }
-
-app.listen(3000, () => {
-  console.log('Web server ligado');
-});
 
 // ===== BOT ONLINE =====
 client.on('ready', () => {
@@ -76,12 +113,15 @@ client.on('interactionCreate', async (interaction) => {
 
       const embed = new EmbedBuilder()
         .setColor('#2b2d31')
-        .setTitle('Avaliação Recebida')
+        .setTitle('**Avaliação Recebida! 🖤**')
+        .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
         .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
         .setDescription(
-`Avaliação: ${texto}
-Total: ${db.total}
-Pedido: ${db.pedidos}`
+`**•** Avaliação: ${texto}
+**•** Total de avaliações: ${db.total}
+**•** Pedido: ${db.pedidos}
+
+Esta avaliação foi registrada de forma anônima para segurança dos clientes.`
         );
 
       const canal = client.channels.cache.get(CANAL_AVALIACOES);
@@ -111,7 +151,7 @@ Pedido: ${db.pedidos}`
       });
     }
 
-    // ===== REMOVER GASTO =====
+    // ===== REMOVER =====
     if (interaction.commandName === 'removergasto') {
 
       if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
@@ -125,9 +165,7 @@ Pedido: ${db.pedidos}`
 
       gastos[user.id] -= valor;
 
-      if (gastos[user.id] <= 0) {
-        delete gastos[user.id];
-      }
+      if (gastos[user.id] <= 0) delete gastos[user.id];
 
       salvarGastos();
 
