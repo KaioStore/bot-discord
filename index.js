@@ -9,8 +9,11 @@ process.on('unhandledRejection', (err) => {
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
-const cors = require('cors');
-app.use(cors());
+const cors = require('cors'); // pode deixar aqui
+
+const app = express(); // ⚠️ TEM QUE VIR ANTES DE TUDO QUE USA app
+
+app.use(cors()); // ⚠️ SÓ DEPOIS disso
 
 const app = express();
 app.use(cors()); // 🔥 necessário pro site
