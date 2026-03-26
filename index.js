@@ -178,33 +178,85 @@ client.on('interactionCreate', async (interaction) => {
     // ===== RANK =====
     if (interaction.commandName === 'rank') {
 
-      const ranking = Object.entries(gastos).sort((a, b) => b[1] - a[1]);
+  const ranking = Object.entries(gastos).sort((a, b) => b[1] - a[1]);
 
-      let texto = '';
+  const porPagina = 10;
+  let pagina = 0;
 
-      for (let i = 0; i < ranking.length; i++) {
-        const userId = ranking[i][0];
-        const valor = ranking[i][1];
+  async function gerarEmbed(p) {
 
-        let user = await client.users.fetch(userId).catch(() => null);
-        let nome = user ? user.username : "Usuário";
+    const totalPaginas = Math.max(1, Math.ceil(ranking.length / porPagina));
+    const inicio = p * porPagina;
+    const dados = ranking.slice(inicio, inicio + porPagina);
 
-        const link = `https://kaio-rank.vercel.app/?id=${userId}`;
+    let texto = '';
 
-        texto += `${i + 1}. [${nome}](${link})\n💰 R$${valor}\n\n`;
-      }
+    for (let i = 0; i < dados.length; i++) {
 
-      const embed = new EmbedBuilder()
-        .setTitle('Top Clientes')
-        .setDescription(texto);
+      const userId = dados[i][0];
+      const valor = dados[i][1];
+      const pos = inicio + i + 1;
 
-      return interaction.reply({ embeds: [embed] });
+      let medalha = `${pos}.`;
+      if (pos === 1) medalha = '🥇';
+      else if (pos === 2) medalha = '🥈';
+      else if (pos === 3) medalha = '🥉';
+
+      let username = 'Usuário';
+
+      try {
+        const user = await client.users.fetch(userId);
+        username = user.username;
+      } catch {}
+
+      const link = `https://kaio-rank.vercel.app/?id=${userId}`;
+
+      texto += `${medalha} [${username}](${link})\n💰 Total: R$${valor}\n\n`;
     }
 
-  } catch (err) {
-    console.error(err);
-    interaction.reply({ content: 'Erro ao executar.', ephemeral: true });
+    texto += `> Continue comprando para subir no ranking e ganhar benefícios!`;
+
+    return new EmbedBuilder()
+      .setTitle('Top Clientes')
+      .setColor('#2b2d31')
+      .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
+      .setDescription(texto)
+      .setFooter({ text: `Página ${p + 1}/${totalPaginas}` });
   }
+
+  const row = {
+    type: 1,
+    components: [
+      { type: 2, style: 2, label: '‹ Anterior', custom_id: 'anterior' },
+      { type: 2, style: 2, label: 'Próximo ›', custom_id: 'proximo' }
+    ]
+  };
+
+  const msg = await interaction.reply({
+    embeds: [await gerarEmbed(pagina)],
+    components: [row],
+    fetchReply: true
+  });
+
+  const collector = msg.createMessageComponentCollector({ time: 600000 });
+
+  collector.on('collect', async i => {
+
+    if (i.user.id !== interaction.user.id) {
+      return i.reply({ content: 'Só você pode usar.', ephemeral: true });
+    }
+
+    const totalPaginas = Math.ceil(ranking.length / porPagina);
+
+    if (i.customId === 'anterior' && pagina > 0) pagina--;
+    if (i.customId === 'proximo' && pagina < totalPaginas - 1) pagina++;
+
+    await i.update({
+      embeds: [await gerarEmbed(pagina)],
+      components: [row]
+    });
+  });
+}
 
 });
 
