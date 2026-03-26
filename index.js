@@ -55,8 +55,16 @@ function salvarGastos() {
 }
 
 // ===== API =====
+// ===== API =====
 app.get('/perfil/:id', async (req, res) => {
   const id = req.params.id;
+
+  // 🔥 ADICIONADO (ESPERA O BOT LIGAR)
+  if (!client.isReady()) {
+    return setTimeout(() => {
+      res.redirect(`/perfil/${req.params.id}`);
+    }, 2000);
+  }
 
   if (!client.isReady()) {
     return res.json({ erro: true });
@@ -85,6 +93,48 @@ app.get('/perfil/:id', async (req, res) => {
 
   } catch {
     res.json({ erro: true });
+  }
+});
+
+
+// 🔥🔥🔥 SUA ROTA RANKING COM ADIÇÃO
+app.get('/ranking', async (req, res) => {
+
+  // 🔥 ADICIONADO (ESPERA O BOT LIGAR)
+  if (!client.isReady()) {
+    return setTimeout(() => {
+      res.redirect('/ranking');
+    }, 2000);
+  }
+
+  try {
+    const ranking = Object.entries(gastos)
+      .sort((a, b) => b[1] - a[1]);
+
+    const lista = [];
+
+    for (let i = 0; i < ranking.length; i++) {
+      const userId = ranking[i][0];
+      const total = ranking[i][1];
+
+      let nome = "Usuário";
+
+      try {
+        const user = await client.users.fetch(userId);
+        nome = user.username;
+      } catch {}
+
+      lista.push({
+        id: userId,
+        nome,
+        total
+      });
+    }
+
+    res.json(lista);
+
+  } catch (err) {
+    res.json([]);
   }
 });
 
