@@ -180,6 +180,8 @@ client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
 });
 
+// (SEU CÓDIGO TODO FICA IGUAL ATÉ A PARTE DOS COMANDOS)
+
 // ===== COMANDOS =====
 client.on('interactionCreate', async (interaction) => {
 
@@ -187,9 +189,37 @@ client.on('interactionCreate', async (interaction) => {
 
   try {
 
+    // ===== SALDO (ADICIONADO) =====
+    if (interaction.commandName === 'saldo') {
+
+      const user = interaction.options.getUser('usuario') || interaction.user;
+      const total = gastos[user.id] || 0;
+
+      let vip = "Sem cargo";
+      if (total >= 1000) vip = "Diamante";
+      else if (total >= 500) vip = "Ouro";
+      else if (total >= 300) vip = "Prata";
+      else if (total >= 100) vip = "Bronze";
+
+      return interaction.reply({
+        content: `💰 ${user.username} gastou: R$${total}\n🏆 VIP: ${vip}`,
+        ephemeral: true
+      });
+    }
+
+    // ===== EMBED (ADICIONADO) =====
+    if (interaction.commandName === 'embed') {
+
+      const embed = new EmbedBuilder()
+        .setTitle('Seu embed')
+        .setDescription('Use este comando como base e depois evoluímos 😉')
+        .setColor('#2b2d31');
+
+      return interaction.reply({ embeds: [embed] });
+    }
+
     // ===== AVALIAR =====
     if (interaction.commandName === 'avaliar') {
-
       if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
         return interaction.reply({ content: 'Só administradores podem usar esse comando.', ephemeral: true });
       }
