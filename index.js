@@ -10,6 +10,7 @@ const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField } = require
 const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
+app.use(cors());
 
 const app = express();
 app.use(cors()); // 🔥 necessário pro site
