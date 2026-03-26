@@ -176,8 +176,11 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // ===== RANK =====
-    if (interaction.commandName === 'rank') {
-      await interaction.deferReply();
+   // ===== RANK =====
+if (interaction.commandName === 'rank') {
+
+  await interaction.deferReply(); // 👈 necessário
+
   const ranking = Object.entries(gastos).sort((a, b) => b[1] - a[1]);
 
   const porPagina = 10;
@@ -232,7 +235,7 @@ client.on('interactionCreate', async (interaction) => {
     ]
   };
 
-  const msg = await interaction.reply({
+  const msg = await interaction.editReply({ // 👈 TROQUEI AQUI
     embeds: [await gerarEmbed(pagina)],
     components: [row],
     fetchReply: true
@@ -257,7 +260,6 @@ client.on('interactionCreate', async (interaction) => {
     });
   });
 }
-
 });
 
 client.login(TOKEN);
