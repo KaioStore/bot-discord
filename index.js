@@ -59,6 +59,11 @@ function salvarGastos() {
 app.get('/perfil/:id', async (req, res) => {
   const id = req.params.id;
 
+  // 🔥 se bot não estiver pronto ainda
+  if (!client.isReady()) {
+    return res.json({ erro: true });
+  }
+
   try {
     const user = await client.users.fetch(id);
     const total = gastos[id] || 0;
