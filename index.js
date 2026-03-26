@@ -15,8 +15,33 @@ app.use(cors());
 const app = express();
 app.use(cors()); // 🔥 necessário pro site
 
-app.get('/', (req, res) => {
-  res.send('Bot online!');
+app.get('/perfil/:id', async (req, res) => {
+  const userId = req.params.id;
+
+  let total = gastos[userId] || 0;
+
+  let vip = "Sem cargo";
+  if (total >= 1000) vip = "Diamante";
+  else if (total >= 500) vip = "Ouro";
+  else if (total >= 300) vip = "Prata";
+  else if (total >= 100) vip = "Bronze";
+
+  try {
+    const user = await client.users.fetch(userId);
+
+    return res.json({
+      nome: user.username,
+      avatar: user.displayAvatarURL({ dynamic: true, size: 512 }),
+      total: total,
+      vip: vip,
+      posicao: Object.entries(gastos)
+        .sort((a, b) => b[1] - a[1])
+        .findIndex(([id]) => id === userId) + 1
+    });
+
+  } catch {
+    return res.json({ erro: true });
+  }
 });
 
 // ===== CONFIG =====
