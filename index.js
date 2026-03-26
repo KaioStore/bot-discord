@@ -88,6 +88,39 @@ app.get('/perfil/:id', async (req, res) => {
   }
 });
 
+// 🔥🔥🔥 ADICIONADO (NÃO REMOVIDO NADA)
+app.get('/ranking', async (req, res) => {
+  try {
+    const ranking = Object.entries(gastos)
+      .sort((a, b) => b[1] - a[1]);
+
+    const lista = [];
+
+    for (let i = 0; i < ranking.length; i++) {
+      const userId = ranking[i][0];
+      const total = ranking[i][1];
+
+      let nome = "Usuário";
+
+      try {
+        const user = await client.users.fetch(userId);
+        nome = user.username;
+      } catch {}
+
+      lista.push({
+        id: userId,
+        nome,
+        total
+      });
+    }
+
+    res.json(lista);
+
+  } catch (err) {
+    res.json([]);
+  }
+});
+
 app.listen(3000, () => {
   console.log('Web server ligado');
 });
