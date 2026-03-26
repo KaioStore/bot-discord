@@ -9,16 +9,56 @@ process.on('unhandledRejection', (err) => {
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
-const cors = require('cors'); // ✅ ADICIONADO
+const cors = require('cors');
 
 const app = express();
-app.use(cors()); // ✅ ADICIONADO
+app.use(cors()); // 🔥 necessário pro site
 
 app.get('/', (req, res) => {
   res.send('Bot online!');
 });
 
-// 🔥 API PRO SITE (ESSENCIAL)
+// ===== CONFIG =====
+const TOKEN = process.env.TOKEN;
+const CANAL_AVALIACOES = '1411493010268753930';
+
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
+});
+
+// ===== BANCO AVALIAÇÕES =====
+let db = { total: 419, pedidos: 450 };
+
+try {
+  if (fs.existsSync('./db.json')) {
+    db = JSON.parse(fs.readFileSync('./db.json', 'utf8'));
+  }
+} catch {
+  fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+}
+
+function salvar() {
+  fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+}
+
+// ===== BANCO GASTOS =====
+let gastos = {};
+
+try {
+  if (fs.existsSync('./gastos.json')) {
+    const conteudo = fs.readFileSync('./gastos.json', 'utf8');
+    gastos = conteudo ? JSON.parse(conteudo) : {};
+  }
+} catch {
+  gastos = {};
+  fs.writeFileSync('./gastos.json', '{}');
+}
+
+function salvarGastos() {
+  fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
+}
+
+// ===== API PRO SITE (NÃO REMOVE ISSO) =====
 app.get('/perfil/:id', async (req, res) => {
   const id = req.params.id;
 
@@ -27,22 +67,19 @@ app.get('/perfil/:id', async (req, res) => {
     const total = gastos[id] || 0;
 
     let vip = null;
-
     if (total >= 1000) vip = 'Diamante';
     else if (total >= 500) vip = 'Ouro';
     else if (total >= 300) vip = 'Prata';
     else if (total >= 100) vip = 'Bronze';
 
-    const ranking = Object.entries(gastos)
-      .sort((a, b) => b[1] - a[1]);
-
+    const ranking = Object.entries(gastos).sort((a, b) => b[1] - a[1]);
     const posicao = ranking.findIndex(u => u[0] === id) + 1;
 
     res.json({
       nome: user.username,
       avatar: user.displayAvatarURL({ dynamic: true }),
-      total: total,
-      vip: vip,
+      total,
+      vip,
       posicao: posicao || null
     });
 
@@ -54,35 +91,6 @@ app.get('/perfil/:id', async (req, res) => {
 app.listen(3000, () => {
   console.log('Web server ligado');
 });
-
-// ===== CONFIG =====
-const TOKEN = process.env.TOKEN;
-const CANAL_AVALIACOES = '1411493010268753930';
-
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
-});
-
-// ===== BANCO =====
-let db = { total: 419, pedidos: 450 };
-
-if (fs.existsSync('./db.json')) {
-  db = JSON.parse(fs.readFileSync('./db.json'));
-}
-
-function salvar() {
-  fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
-}
-
-let gastos = {};
-
-if (fs.existsSync('./gastos.json')) {
-  gastos = JSON.parse(fs.readFileSync('./gastos.json'));
-}
-
-function salvarGastos() {
-  fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
-}
 
 // ===== BOT ONLINE =====
 client.on('ready', () => {
@@ -100,41 +108,54 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.commandName === 'avaliar') {
 
       if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: 'Só administradores podem usar.', ephemeral: true });
+        return interaction.reply({ content: 'Só administradores podem usar esse comando.', ephemeral: true });
       }
 
       const texto = interaction.options.getString('texto');
 
+      if (!texto || texto.length < 5) {
+        return interaction.reply({
+          content: 'Você precisa escrever uma avaliação válida.',
+          ephemeral: true
+        });
+      }
+
       await interaction.deferReply({ ephemeral: true });
 
-      db.total++;
-      db.pedidos++;
+      db.total += 1;
+      db.pedidos += 1;
       salvar();
 
+      // 🔥 SEU EMBED ORIGINAL BONITO
       const embed = new EmbedBuilder()
         .setColor('#2b2d31')
         .setTitle('**Avaliação Recebida! 🖤**')
         .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
         .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
         .setDescription(
-`**•** Avaliação: ${texto}
-**•** Total de avaliações: ${db.total}
-**•** Pedido: ${db.pedidos}
+`**•** **Avaliação:** ${texto}
+**•** **Total de avaliações:** ${db.total}
+**•** **Pedido:** ${db.pedidos}
 
-Esta avaliação foi registrada de forma anônima para segurança dos clientes.`
+Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`
         );
 
       const canal = client.channels.cache.get(CANAL_AVALIACOES);
-      if (canal) canal.send({ embeds: [embed] });
 
-      return interaction.editReply('Avaliação enviada.');
+      if (!canal) {
+        return interaction.editReply('Canal não encontrado.');
+      }
+
+      await canal.send({ embeds: [embed] });
+
+      return interaction.editReply('Avaliação enviada com sucesso.');
     }
 
     // ===== GASTAR =====
     if (interaction.commandName === 'gastar') {
 
       if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: 'Só administradores podem usar.', ephemeral: true });
+        return interaction.reply({ content: 'Só administradores podem usar esse comando.', ephemeral: true });
       }
 
       const user = interaction.options.getUser('usuario');
@@ -146,16 +167,16 @@ Esta avaliação foi registrada de forma anônima para segurança dos clientes.`
       salvarGastos();
 
       return interaction.reply({
-        content: `Gasto adicionado para ${user.username}`,
+        content: `💸 Gasto adicionado para ${user.username}.`,
         ephemeral: true
       });
     }
 
-    // ===== REMOVER =====
+    // ===== REMOVER GASTO =====
     if (interaction.commandName === 'removergasto') {
 
       if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: 'Só administradores podem usar.', ephemeral: true });
+        return interaction.reply({ content: 'Só administradores podem usar esse comando.', ephemeral: true });
       }
 
       const user = interaction.options.getUser('usuario');
@@ -165,12 +186,14 @@ Esta avaliação foi registrada de forma anônima para segurança dos clientes.`
 
       gastos[user.id] -= valor;
 
-      if (gastos[user.id] <= 0) delete gastos[user.id];
+      if (gastos[user.id] <= 0) {
+        delete gastos[user.id];
+      }
 
       salvarGastos();
 
       return interaction.reply({
-        content: `Gasto removido de ${user.username}`,
+        content: `💸 Gasto removido de ${user.username}.`,
         ephemeral: true
       });
     }
@@ -178,13 +201,13 @@ Esta avaliação foi registrada de forma anônima para segurança dos clientes.`
     // ===== RANK =====
     if (interaction.commandName === 'rank') {
 
-      const ranking = Object.entries(gastos).sort((a, b) => b[1] - a[1]);
+      const ranking = Object.entries(gastos)
+        .sort((a, b) => b[1] - a[1]);
 
       const porPagina = 10;
       let pagina = 0;
 
       async function gerarEmbed(p) {
-
         const totalPaginas = Math.max(1, Math.ceil(ranking.length / porPagina));
         const inicio = p * porPagina;
         const dados = ranking.slice(inicio, inicio + porPagina);
@@ -192,7 +215,6 @@ Esta avaliação foi registrada de forma anônima para segurança dos clientes.`
         let texto = '';
 
         for (let i = 0; i < dados.length; i++) {
-
           const userId = dados[i][0];
           const valor = dados[i][1];
           const pos = inicio + i + 1;
@@ -203,7 +225,6 @@ Esta avaliação foi registrada de forma anônima para segurança dos clientes.`
           else if (pos === 3) medalha = '🥉';
 
           let username = 'Usuário';
-
           try {
             const user = await client.users.fetch(userId);
             username = user.username;
@@ -211,7 +232,7 @@ Esta avaliação foi registrada de forma anônima para segurança dos clientes.`
 
           const link = `https://kaio-rank.vercel.app/?id=${userId}`;
 
-          texto += `${medalha} [${username}](${link})\n💰 R$${valor}\n\n`;
+          texto += `${medalha} [${username}](${link})\n💰 Total: R$${valor}\n\n`;
         }
 
         texto += `> Continue comprando para subir no ranking e ganhar benefícios!`;
@@ -241,7 +262,6 @@ Esta avaliação foi registrada de forma anônima para segurança dos clientes.`
       const collector = msg.createMessageComponentCollector({ time: 600000 });
 
       collector.on('collect', async i => {
-
         if (i.user.id !== interaction.user.id) {
           return i.reply({ content: 'Só você pode usar.', ephemeral: true });
         }
