@@ -16,40 +16,6 @@ app.get('/', (req, res) => {
   res.send('Bot online!');
 });
 
-// ===== API PERFIL =====
-app.get('/perfil/:id', async (req, res) => {
-  const id = req.params.id;
-
-  try {
-    const user = await client.users.fetch(id);
-    const total = gastos[id] || 0;
-
-    let vip = null;
-    if (total >= 1000) vip = 'Diamante';
-    else if (total >= 500) vip = 'Ouro';
-    else if (total >= 300) vip = 'Prata';
-    else if (total >= 100) vip = 'Bronze';
-
-    const ranking = Object.entries(gastos).sort((a, b) => b[1] - a[1]);
-    const posicao = ranking.findIndex(u => u[0] === id) + 1;
-
-    res.json({
-      nome: user.username,
-      avatar: user.displayAvatarURL({ dynamic: true }),
-      total,
-      vip,
-      posicao: posicao || null
-    });
-
-  } catch {
-    res.json({ erro: true });
-  }
-});
-
-app.listen(3000, () => {
-  console.log('Web server ligado');
-});
-
 // ===== CONFIG =====
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
@@ -76,6 +42,10 @@ if (fs.existsSync('./gastos.json')) {
 function salvarGastos() {
   fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
 }
+
+app.listen(3000, () => {
+  console.log('Web server ligado');
+});
 
 // ===== BOT ONLINE =====
 client.on('ready', () => {
@@ -106,13 +76,12 @@ client.on('interactionCreate', async (interaction) => {
 
       const embed = new EmbedBuilder()
         .setColor('#2b2d31')
-        .setTitle('**Avaliação Recebida! 🖤**')
-        .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
+        .setTitle('Avaliação Recebida')
         .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
         .setDescription(
-`**•** Avaliação: ${texto}
-**•** Total: ${db.total}
-**•** Pedido: ${db.pedidos}`
+`Avaliação: ${texto}
+Total: ${db.total}
+Pedido: ${db.pedidos}`
         );
 
       const canal = client.channels.cache.get(CANAL_AVALIACOES);
@@ -137,7 +106,7 @@ client.on('interactionCreate', async (interaction) => {
       salvarGastos();
 
       return interaction.reply({
-        content: `💰 Gasto adicionado para ${user.username}`,
+        content: `Gasto adicionado para ${user.username}`,
         ephemeral: true
       });
     }
@@ -163,7 +132,7 @@ client.on('interactionCreate', async (interaction) => {
       salvarGastos();
 
       return interaction.reply({
-        content: `➖ Gasto removido de ${user.username}`,
+        content: `Gasto removido de ${user.username}`,
         ephemeral: true
       });
     }
@@ -195,15 +164,16 @@ client.on('interactionCreate', async (interaction) => {
           else if (pos === 2) medalha = '🥈';
           else if (pos === 3) medalha = '🥉';
 
-          let nome = `<@${userId}>`;
+          let username = 'Usuário';
+
           try {
-            const member = await interaction.guild.members.fetch(userId);
-            nome = member.toString();
+            const user = await client.users.fetch(userId);
+            username = user.username;
           } catch {}
 
           const link = `https://kaio-rank.vercel.app/?id=${userId}`;
 
-          texto += `${medalha} [${nome}](${link})\n💰 Total: **R$${valor}**\n\n`;
+          texto += `${medalha} [${username}](${link})\n💰 R$${valor}\n\n`;
         }
 
         texto += `> Continue comprando para subir no ranking e ganhar benefícios!`;
@@ -254,9 +224,9 @@ client.on('interactionCreate', async (interaction) => {
     console.error(err);
 
     if (interaction.replied || interaction.deferred) {
-      interaction.followUp({ content: 'Erro ao executar comando.', ephemeral: true });
+      interaction.followUp({ content: 'Erro ao executar.', ephemeral: true });
     } else {
-      interaction.reply({ content: 'Erro ao executar comando.', ephemeral: true });
+      interaction.reply({ content: 'Erro ao executar.', ephemeral: true });
     }
   }
 
