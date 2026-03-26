@@ -232,8 +232,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       });
     }
 
-    // RANK (SEU ORIGINAL)
-    // RANK (SEU ORIGINAL CORRIGIDO)
+    // RANK PERFEITO
 if (interaction.commandName === 'rank') {
 
   await interaction.deferReply();
@@ -247,16 +246,22 @@ if (interaction.commandName === 'rank') {
     const userId = ranking[i][0];
     const valor = ranking[i][1];
 
+    const user = await client.users.fetch(userId).catch(() => null);
+    const nome = user ? user.username : 'Usuário';
+
     const link = `https://kaio-rank.vercel.app/?id=${userId}`;
 
-    const user = await client.users.fetch(userId).catch(() => null);
-    const nome = user ? `[${user.username}](${link})` : 'Usuário';
+    // 🏆 MEDALHAS
+    let medalha = '🏅';
+    if (i === 0) medalha = '🥇';
+    else if (i === 1) medalha = '🥈';
+    else if (i === 2) medalha = '🥉';
 
-    texto += `**${i + 1}.** ${nome}\n💰 R$${valor}\n\n`;
+    texto += `${medalha} [${nome}](${link})\n💰 Total: R$${valor}\n\n`;
   }
 
-  // ✅ FRASE AQUI (fora do for)
-  texto += `\n> Continue comprando para subir no ranking e ganhar benefícios!`;
+  // FRASE FINAL
+  texto += `> Continue comprando para subir no ranking e ganhar benefícios!`;
 
   const embed = new EmbedBuilder()
     .setTitle('Top Clientes')
