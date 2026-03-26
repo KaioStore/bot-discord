@@ -232,43 +232,91 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       });
     }
 
-    // RANK PERFEITO
+    // ===== RANK COMPLETO (COM BOTÕES + LINK + MENÇÃO)
 if (interaction.commandName === 'rank') {
-
-  await interaction.deferReply();
 
   const ranking = Object.entries(gastos)
     .sort((a, b) => b[1] - a[1]);
 
-  let texto = '';
+  const porPagina = 10;
+  let pagina = 0;
 
-  for (let i = 0; i < ranking.length; i++) {
-    const userId = ranking[i][0];
-    const valor = ranking[i][1];
+  async function gerarEmbed(p) {
+    const totalPaginas = Math.max(1, Math.ceil(ranking.length / porPagina));
+    const inicio = p * porPagina;
+    const dados = ranking.slice(inicio, inicio + porPagina);
 
-    const user = await client.users.fetch(userId).catch(() => null);
-    const nome = user ? user.username : 'Usuário';
+    let texto = '';
 
-    const link = `https://kaio-rank.vercel.app/?id=${userId}`;
+    if (dados.length === 0) {
+      texto = 'Ainda não há ninguém no ranking.';
+    } else {
+      for (let i = 0; i < dados.length; i++) {
+        const userId = dados[i][0];
+        const valor = dados[i][1];
 
-    // 🏆 MEDALHAS
-    let medalha = '🏅';
-    if (i === 0) medalha = '🥇';
-    else if (i === 1) medalha = '🥈';
-    else if (i === 2) medalha = '🥉';
+        const pos = inicio + i + 1;
 
-    texto += `${medalha} [${nome}](${link})\n💰 Total: R$${valor}\n\n`;
+        // 🏆 medalha
+        let medalha = `${pos}.`;
+        if (pos === 1) medalha = '🥇';
+        else if (pos === 2) medalha = '🥈';
+        else if (pos === 3) medalha = '🥉';
+
+        // 🔥 menção real
+        let nome = `<@${userId}>`;
+        try {
+          const member = await interaction.guild.members.fetch(userId);
+          nome = member.toString();
+        } catch {}
+
+        // 🔗 link clicável (nome azul)
+        const link = `https://kaio-rank.vercel.app/?id=${userId}`;
+
+        texto += `${medalha} [${nome}](${link})\n💰 Total: **R$${valor}**\n\n`;
+      }
+    }
+
+    texto += `> Continue comprando para subir no ranking e ganhar benefícios!`;
+
+    return new EmbedBuilder()
+      .setTitle('Top Clientes')
+      .setDescription(texto)
+      .setColor('#2b2d31')
+      .setFooter({ text: `Página ${p + 1}/${totalPaginas}` });
   }
 
-  // FRASE FINAL
-  texto += `> Continue comprando para subir no ranking e ganhar benefícios!`;
+  const row = {
+    type: 1,
+    components: [
+      { type: 2, style: 2, label: '‹ Anterior', custom_id: 'anterior' },
+      { type: 2, style: 2, label: 'Próximo ›', custom_id: 'proximo' }
+    ]
+  };
 
-  const embed = new EmbedBuilder()
-    .setTitle('Top Clientes')
-    .setDescription(texto)
-    .setColor('#2b2d31');
+  const msg = await interaction.reply({
+    embeds: [await gerarEmbed(pagina)],
+    components: [row],
+    fetchReply: true
+  });
 
-  return interaction.editReply({ embeds: [embed] });
+  const collector = msg.createMessageComponentCollector({ time: 600000 });
+
+  collector.on('collect', async i => {
+    if (i.user.id !== interaction.user.id) {
+      return i.reply({ content: 'Só quem executou pode usar.', ephemeral: true });
+    }
+
+    const totalPaginas = Math.ceil(ranking.length / porPagina);
+
+    if (i.customId === 'anterior' && pagina > 0) pagina--;
+    if (i.customId === 'proximo' && pagina < totalPaginas - 1) pagina++;
+
+    await i.update({
+      embeds: [await gerarEmbed(pagina)],
+      components: [row]
+    });
+  });
 }
 });
 
