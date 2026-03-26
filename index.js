@@ -233,47 +233,38 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     }
 
     // RANK (SEU ORIGINAL)
-    if (interaction.commandName === 'rank') {
+    // RANK (SEU ORIGINAL CORRIGIDO)
+if (interaction.commandName === 'rank') {
 
-      await interaction.deferReply();
+  await interaction.deferReply();
 
-      const ranking = Object.entries(gastos)
-        .sort((a, b) => b[1] - a[1]);
+  const ranking = Object.entries(gastos)
+    .sort((a, b) => b[1] - a[1]);
 
-      let texto = '';
+  let texto = '';
 
-      for (let i = 0; i < ranking.length; i++) {
-        const userId = ranking[i][0];
-        const valor = ranking[i][1];
+  for (let i = 0; i < ranking.length; i++) {
+    const userId = ranking[i][0];
+    const valor = ranking[i][1];
 
-        texto += `\n> Continue comprando para subir no ranking e ganhar benefícios!`;
+    const link = `https://kaio-rank.vercel.app/?id=${userId}`;
 
-        const link = `https://kaio-rank.vercel.app/?id=${userId}`;
+    const user = await client.users.fetch(userId).catch(() => null);
+    const nome = user ? `[${user.username}](${link})` : 'Usuário';
 
-        const user = await client.users.fetch(userId).catch(() => null);
-        const nome = user ? `[${user.username}](${link})` : 'Usuário';
-
-        texto += `**${i + 1}.** ${nome}\n💰 R$${valor}\n\n`;
-      }
-
-      const embed = new EmbedBuilder()
-        .setTitle('Top Clientes')
-        .setDescription(texto)
-        .setColor('#2b2d31');
-
-      return interaction.editReply({ embeds: [embed] });
-    }
-
-  } catch (err) {
-    console.error(err);
-
-    if (interaction.deferred || interaction.replied) {
-      interaction.editReply({ content: 'Erro ao executar comando.' }).catch(() => {});
-    } else {
-      interaction.reply({ content: 'Erro ao executar comando.', ephemeral: true }).catch(() => {});
-    }
+    texto += `**${i + 1}.** ${nome}\n💰 R$${valor}\n\n`;
   }
 
+  // ✅ FRASE AQUI (fora do for)
+  texto += `\n> Continue comprando para subir no ranking e ganhar benefícios!`;
+
+  const embed = new EmbedBuilder()
+    .setTitle('Top Clientes')
+    .setDescription(texto)
+    .setColor('#2b2d31');
+
+  return interaction.editReply({ embeds: [embed] });
+}
 });
 
 client.login(TOKEN);
