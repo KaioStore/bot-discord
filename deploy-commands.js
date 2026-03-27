@@ -1,3 +1,4 @@
+require('dotenv').config(); // Carrega .env
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
 const TOKEN = process.env.TOKEN;
@@ -60,7 +61,7 @@ const commands = [
     .setName('rank')
     .setDescription('Ranking de gastos'),
 
-  // 🔥 EMBED (AGORA CERTO)
+  // 🔥 EMBED
   new SlashCommandBuilder()
     .setName('embed')
     .setDescription('Criar embed profissional')
@@ -75,10 +76,10 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 
     await rest.put(
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: commands },
+      { body: commands } // <- vírgula removida aqui
     );
 
-    console.log('Comandos registrados!');
+    console.log('Comandos registrados com sucesso!');
   } catch (error) {
     console.error(error);
   }
