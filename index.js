@@ -1,10 +1,5 @@
-process.on('uncaughtException', (err) => {
-  console.error('Erro não tratado:', err);
-});
-
-process.on('unhandledRejection', (err) => {
-  console.error('Promise rejeitada:', err);
-});
+process.on('uncaughtException', console.error);
+process.on('unhandledRejection', console.error);
 
 const {
   Client,
@@ -27,6 +22,7 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
+// ===== CONFIG =====
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
 const SITE = 'https://kaio-rank.vercel.app';
@@ -35,16 +31,12 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
+// ===== BANCO =====
 let db = { total: 419, pedidos: 450 };
 let gastos = {};
 
-if (fs.existsSync('./db.json')) {
-  db = JSON.parse(fs.readFileSync('./db.json', 'utf8'));
-}
-
-if (fs.existsSync('./gastos.json')) {
-  gastos = JSON.parse(fs.readFileSync('./gastos.json', 'utf8'));
-}
+if (fs.existsSync('./db.json')) db = JSON.parse(fs.readFileSync('./db.json'));
+if (fs.existsSync('./gastos.json')) gastos = JSON.parse(fs.readFileSync('./gastos.json'));
 
 function salvar() {
   fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
@@ -54,18 +46,21 @@ function salvar() {
 // ===== EMBED SYSTEM =====
 const embedSessions = {};
 
-client.on('ready', () => {
+// ===== READY =====
+client.on('clientReady', () => {
   console.log(`Logado como ${client.user.tag}`);
 });
 
+// ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
+    const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
-    // ===== COMANDOS =====
+    // ================= COMANDOS =================
     if (interaction.isChatInputCommand()) {
 
+      // ===== EMBED =====
       if (interaction.commandName === 'embed') {
         embedSessions[interaction.user.id] = {
           embeds: [{}],
@@ -77,14 +72,15 @@ client.on('interactionCreate', async (interaction) => {
           embeds: [
             new EmbedBuilder()
               .setColor('#2b2d31')
-              .setTitle('Painel de Embed')
+              .setTitle('Abrir painel embed')
               .setDescription('Use os botões abaixo para editar')
           ],
           components: gerarMenu(interaction.user.id),
-          ephemeral: true
+          flags: 64
         });
       }
 
+      // ===== SALDO =====
       if (interaction.commandName === 'saldo') {
         const user = interaction.options.getUser('usuario') || interaction.user;
         const total = gastos[user.id] || 0;
@@ -97,12 +93,13 @@ client.on('interactionCreate', async (interaction) => {
 
         return interaction.reply({
           content: `💰 ${user.username} gastou: R$${total}\n🏆 VIP: ${vip}`,
-          ephemeral: true
+          flags: 64
         });
       }
 
+      // ===== GASTAR =====
       if (interaction.commandName === 'gastar') {
-        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', flags: 64 });
 
         const user = interaction.options.getUser('usuario');
         const valor = interaction.options.getNumber('valor');
@@ -110,11 +107,12 @@ client.on('interactionCreate', async (interaction) => {
         gastos[user.id] = (gastos[user.id] || 0) + valor;
         salvar();
 
-        return interaction.reply({ content: `Adicionado R$${valor} para ${user.username}`, ephemeral: true });
+        return interaction.reply({ content: `Adicionado R$${valor} para ${user.username}`, flags: 64 });
       }
 
+      // ===== REMOVER =====
       if (interaction.commandName === 'removergasto') {
-        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', flags: 64 });
 
         const user = interaction.options.getUser('usuario');
         const valor = interaction.options.getNumber('valor');
@@ -123,15 +121,14 @@ client.on('interactionCreate', async (interaction) => {
         if (gastos[user.id] < 0) gastos[user.id] = 0;
         salvar();
 
-        return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, ephemeral: true });
+        return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, flags: 64 });
       }
 
+      // ===== AVALIAR =====
       if (interaction.commandName === 'avaliar') {
-        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', flags: 64 });
 
         const texto = interaction.options.getString('texto');
-
-        await interaction.deferReply({ ephemeral: true });
 
         db.total++;
         db.pedidos++;
@@ -142,54 +139,63 @@ client.on('interactionCreate', async (interaction) => {
           .setTitle('**Avaliação Recebida! 🖤**')
           .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
           .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-          .setDescription(`**•** Avaliação: ${texto}
+          .setDescription(
+`**•** Avaliação: ${texto}
 **•** Total: ${db.total}
-**•** Pedido: ${db.pedidos}`);
+**•** Pedido: ${db.pedidos}`
+          );
 
         const canal = client.channels.cache.get(CANAL_AVALIACOES);
         if (canal) canal.send({ embeds: [embed] });
 
-        return interaction.editReply('Avaliação enviada.');
+        return interaction.reply({ content: 'Avaliação enviada.', flags: 64 });
       }
 
+      // ===== RANK COMPLETO =====
       if (interaction.commandName === 'rank') {
 
-        const rankingArray = Object.entries(gastos)
-          .sort(([,a],[,b]) => b - a);
+        const ranking = Object.entries(gastos).sort((a,b)=>b[1]-a[1]);
 
         const embed = new EmbedBuilder()
           .setColor('#2b2d31')
-          .setTitle('🏆 Top Clientes')
+          .setTitle('🏆 Ranking de Clientes')
           .setDescription(
-            rankingArray.map(([id, total], i) => {
-              const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+            ranking.map(([id,total],i)=>{
 
-              return `${medal} [<@${id}>](${SITE}/user/${id})
-💰 Total: R$${total}
+              let vip = "Sem cargo";
+              if (total >= 1000) vip = "Diamante";
+              else if (total >= 500) vip = "Ouro";
+              else if (total >= 300) vip = "Prata";
+              else if (total >= 100) vip = "Bronze";
 
-> Continue comprando para subir no ranking!`;
+              let prox = '';
+              let falta = 0;
+
+              if (vip === 'Sem cargo') { prox='Bronze'; falta=100-total }
+              else if (vip === 'Bronze') { prox='Prata'; falta=300-total }
+              else if (vip === 'Prata') { prox='Ouro'; falta=500-total }
+              else if (vip === 'Ouro') { prox='Diamante'; falta=1000-total }
+
+              return `**${i+1}º** - [<@${id}>](${SITE}/user/${id})
+💰 R$${total} — 🏆 ${vip}
+> Continue comprando para atingir **${prox}**${falta>0?` (faltam R$${falta})`:''}`;
             }).join('\n\n')
           );
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply({ embeds:[embed] });
       }
     }
 
-    // ===== EMBED SYSTEM =====
+    // ================= EMBED SYSTEM =================
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
-    let atual = session.embeds[session.atual];
-    if (!atual) {
-      session.embeds[session.atual] = {};
-      atual = session.embeds[session.atual];
-    }
+    let atual = session.embeds[session.atual] ||= {};
 
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
-
       return interaction.update({
-        embeds: [montarEmbed(session.embeds[session.atual])],
+        embeds:[montarEmbed(session.embeds[session.atual])],
         components: gerarMenu(interaction.user.id)
       });
     }
@@ -199,20 +205,19 @@ client.on('interactionCreate', async (interaction) => {
       const id = interaction.customId;
 
       if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
-        const modal = new ModalBuilder()
-          .setCustomId(id)
-          .setTitle('Editar');
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('input')
-              .setLabel('Digite')
-              .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
-          )
+        return interaction.showModal(
+          new ModalBuilder()
+            .setCustomId(id)
+            .setTitle('Editar')
+            .addComponents(
+              new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                  .setCustomId('input')
+                  .setLabel('Digite')
+                  .setStyle(id==='desc'?2:1)
+              )
+            )
         );
-
-        return interaction.showModal(modal);
       }
 
       if (id === 'add_embed') {
@@ -221,35 +226,35 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (id === 'delete') {
-        session.embeds.splice(session.atual, 1);
-        if (session.embeds.length === 0) session.embeds.push({});
-        session.atual = 0;
+        session.embeds.splice(session.atual,1);
+        if (!session.embeds.length) session.embeds=[{}];
+        session.atual=0;
       }
 
       if (id === 'edit') {
         return interaction.update({
-          embeds: [montarEmbed(atual)],
+          embeds:[montarEmbed(atual)],
           components: gerarEditor()
         });
       }
 
       if (id === 'voltar') {
         return interaction.update({
-          embeds: [montarEmbed(atual)],
+          embeds:[montarEmbed(atual)],
           components: gerarMenu(interaction.user.id)
         });
       }
 
       if (id === 'enviar') {
         await interaction.channel.send({
-          embeds: session.embeds.map(e => montarEmbed(e))
+          embeds: session.embeds.map(montarEmbed)
         });
 
-        return interaction.reply({ content: 'Enviado!', ephemeral: true });
+        return interaction.reply({ content:'Enviado!', flags:64 });
       }
 
       return interaction.update({
-        embeds: [montarEmbed(session.embeds[session.atual])],
+        embeds:[montarEmbed(session.embeds[session.atual])],
         components: gerarMenu(interaction.user.id)
       });
     }
@@ -271,7 +276,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       return interaction.update({
-        embeds: [montarEmbed(atual)],
+        embeds:[montarEmbed(atual)],
         components: gerarEditor()
       });
     }
@@ -282,72 +287,64 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 // ===== FUNÇÕES =====
-function montarEmbed(data) {
-  const embed = new EmbedBuilder().setColor('#2b2d31');
+function montarEmbed(d){
+  const e = new EmbedBuilder().setColor('#2b2d31');
 
-  if (data.title) embed.setTitle(data.title);
-  embed.setDescription(data.description || '⠀');
+  if (d.title) e.setTitle(d.title);
+  e.setDescription(d.description || '⠀');
+  if (d.image) e.setImage(d.image);
+  if (d.thumbnail) e.setThumbnail(d.thumbnail);
 
-  if (data.image) embed.setImage(data.image);
-  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
-
-  if (data.author) {
-    embed.setAuthor({
-      name: data.author.nome || '⠀',
-      url: data.author.url || undefined
+  if (d.author) {
+    e.setAuthor({
+      name: d.author.nome || '⠀',
+      url: d.author.url || undefined
     });
   }
 
-  return embed;
+  return e;
 }
 
-function gerarMenu(userId) {
-  const session = embedSessions[userId];
+function gerarMenu(userId){
+  const s = embedSessions[userId];
 
   return [
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('select')
         .setPlaceholder('Selecionar embed')
-        .addOptions(
-          session.embeds.map((e,i)=>({
-            label:`Embed ${i+1}`,
-            value:`${i}`
-          }))
-        )
+        .addOptions(s.embeds.map((_,i)=>({
+          label:`Embed ${i+1}`,
+          value:`${i}`
+        })))
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar embed').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('delete').setLabel('Deletar').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
+      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar embed').setStyle(2),
+      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(2),
+      new ButtonBuilder().setCustomId('delete').setLabel('Deletar').setStyle(4),
+      new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(3)
     )
   ];
 }
 
-function gerarEditor() {
+function gerarEditor(){
   return [
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(2),
+      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(2),
+      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(2),
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumbnail').setStyle(2)
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(2),
+      new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(1)
     )
   ];
 }
 
-const PORT = process.env.PORT || 3000;
+// ===== WEB =====
+app.get('/', (req,res)=>res.send('Bot online'));
+app.listen(process.env.PORT||3000);
 
-app.get('/', (req, res) => {
-  res.send('Bot online');
-});
-
-app.listen(PORT, () => {
-  console.log('Servidor rodando');
-});
-
+// ===== LOGIN =====
 client.login(TOKEN);
