@@ -385,3 +385,178 @@ client.on('interactionCreate', async (interaction) => {
 
 client.login(TOKEN);
 setInterval(() => {}, 1000);
+
+// ===== EMBED SYSTEM INSANO++ (ADICIONADO SEM REMOVER NADA) =====
+
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
+} = require('discord.js');
+
+const embedSessionsADV = {};
+const embedMessagesADV = {};
+
+function gerarEmbedADV(data) {
+  return new EmbedBuilder()
+    .setTitle(data.title || null)
+    .setDescription(data.description || null)
+    .setColor(data.color || '#2b2d31')
+    .setThumbnail(data.thumbnail || null)
+    .setImage(data.image || null)
+    .setFooter(data.footer ? { text: data.footer } : null)
+    .setAuthor(data.author ? { name: data.author } : null);
+}
+
+function painelADV() {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('adv_add_embed').setLabel('+ Embed').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('adv_title').setLabel('Título').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('adv_desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('adv_color').setLabel('Cor').setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('adv_image').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('adv_thumb').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('adv_footer').setLabel('Rodapé').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('adv_author').setLabel('Autor').setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('adv_button').setLabel('+ Botão').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('adv_send').setLabel('Enviar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('adv_edit').setLabel('Editar Msg').setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
+// ===== NOVA INTERAÇÃO (NÃO QUEBRA A SUA) =====
+client.on('interactionCreate', async (interaction) => {
+
+  // ===== NOVO /embed (SOBRESCREVE O SIMPLES) =====
+  if (interaction.isChatInputCommand() && interaction.commandName === 'embed') {
+
+    embedSessionsADV[interaction.user.id] = {
+      atual: 0,
+      lista: [{}]
+    };
+
+    return interaction.reply({
+      embeds: [gerarEmbedADV({})],
+      components: painelADV(),
+      ephemeral: true
+    });
+  }
+
+  // ===== BOTÕES =====
+  if (interaction.isButton()) {
+
+    const session = embedSessionsADV[interaction.user.id];
+    if (!session) return;
+
+    const atual = session.lista[session.atual];
+
+    const modal = (id, label) =>
+      new ModalBuilder()
+        .setCustomId(id)
+        .setTitle(label)
+        .addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('input')
+              .setLabel(label)
+              .setStyle(TextInputStyle.Short)
+          )
+        );
+
+    if (interaction.customId === 'adv_add_embed') session.lista.push({});
+
+    if (interaction.customId === 'adv_title') return interaction.showModal(modal('adv_title_modal', 'Título'));
+    if (interaction.customId === 'adv_desc') return interaction.showModal(modal('adv_desc_modal', 'Descrição'));
+    if (interaction.customId === 'adv_color') return interaction.showModal(modal('adv_color_modal', 'Cor HEX'));
+    if (interaction.customId === 'adv_image') return interaction.showModal(modal('adv_image_modal', 'URL Imagem'));
+    if (interaction.customId === 'adv_thumb') return interaction.showModal(modal('adv_thumb_modal', 'Thumbnail'));
+    if (interaction.customId === 'adv_footer') return interaction.showModal(modal('adv_footer_modal', 'Rodapé'));
+    if (interaction.customId === 'adv_author') return interaction.showModal(modal('adv_author_modal', 'Autor'));
+
+    if (interaction.customId === 'adv_button') {
+      return interaction.showModal(
+        new ModalBuilder()
+          .setCustomId('adv_btn_modal')
+          .setTitle('Criar Botão')
+          .addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder().setCustomId('label').setLabel('Texto').setStyle(TextInputStyle.Short)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder().setCustomId('url').setLabel('Link').setStyle(TextInputStyle.Short)
+            )
+          )
+      );
+    }
+
+    if (interaction.customId === 'adv_send') {
+      const msg = await interaction.channel.send({
+        embeds: session.lista.map(e => gerarEmbedADV(e))
+      });
+
+      embedMessagesADV[interaction.user.id] = msg;
+    }
+
+    if (interaction.customId === 'adv_edit') {
+      const msg = embedMessagesADV[interaction.user.id];
+      if (msg) {
+        await msg.edit({
+          embeds: session.lista.map(e => gerarEmbedADV(e))
+        });
+      }
+    }
+
+    return interaction.update({
+      embeds: [gerarEmbedADV(atual)],
+      components: painelADV()
+    });
+  }
+
+  // ===== MODALS =====
+  if (interaction.isModalSubmit()) {
+
+    const session = embedSessionsADV[interaction.user.id];
+    if (!session) return;
+
+    const atual = session.lista[session.atual];
+
+    if (interaction.customId === 'adv_btn_modal') {
+      const label = interaction.fields.getTextInputValue('label');
+      const url = interaction.fields.getTextInputValue('url');
+
+      if (!atual.buttons) atual.buttons = [];
+      atual.buttons.push({ label, url });
+
+      return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+    }
+
+    const value = interaction.fields.getTextInputValue('input');
+
+    const map = {
+      adv_title_modal: 'title',
+      adv_desc_modal: 'description',
+      adv_color_modal: 'color',
+      adv_image_modal: 'image',
+      adv_thumb_modal: 'thumbnail',
+      adv_footer_modal: 'footer',
+      adv_author_modal: 'author'
+    };
+
+    atual[map[interaction.customId]] = value;
+
+    return interaction.update({
+      embeds: [gerarEmbedADV(atual)],
+      components: painelADV()
+    });
+  }
+
+});
