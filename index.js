@@ -64,7 +64,7 @@ client.on('interactionCreate', async (interaction) => {
 
   try {
 
-    const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
+    const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
 
     // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
