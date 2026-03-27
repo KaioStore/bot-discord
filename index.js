@@ -56,7 +56,6 @@ function salvar() {
 // ===== EMBED SYSTEM =====
 const embedSessions = {};
 
-// ===== BOT =====
 client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
 });
@@ -82,8 +81,8 @@ client.on('interactionCreate', async (interaction) => {
           embeds: [
             new EmbedBuilder()
               .setColor('#2b2d31')
-              .setTitle('Abrir painel embed')
-              .setDescription('Gerencie seus embeds abaixo')
+              .setTitle('Painel de Embed')
+              .setDescription('Use os botões abaixo para editar')
           ],
           components: gerarMenu(interaction.user.id),
           ephemeral: true
@@ -105,31 +104,6 @@ client.on('interactionCreate', async (interaction) => {
           content: `💰 ${user.username} gastou: R$${total}\n🏆 VIP: ${vip}`,
           ephemeral: true
         });
-      }
-
-      // ===== AVALIAR (MANTIDO) =====
-      if (interaction.commandName === 'avaliar') {
-        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
-
-        const texto = interaction.options.getString('texto');
-
-        await interaction.deferReply({ ephemeral: true });
-
-        db.total++;
-        db.pedidos++;
-        salvar();
-
-        const embed = new EmbedBuilder()
-          .setColor('#2b2d31')
-          .setTitle('**Avaliação Recebida! 🖤**')
-          .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
-          .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-          .setDescription(`**•** Avaliação: ${texto}\n**•** Total: ${db.total}\n**•** Pedido: ${db.pedidos}`);
-
-        const canal = client.channels.cache.get(CANAL_AVALIACOES);
-        if (canal) canal.send({ embeds: [embed] });
-
-        return interaction.editReply('Avaliação enviada.');
       }
 
       // ===== GASTAR =====
@@ -159,6 +133,35 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, ephemeral: true });
       }
 
+      // ===== AVALIAR =====
+      if (interaction.commandName === 'avaliar') {
+        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+
+        const texto = interaction.options.getString('texto');
+
+        await interaction.deferReply({ ephemeral: true });
+
+        db.total++;
+        db.pedidos++;
+        salvar();
+
+        const embed = new EmbedBuilder()
+          .setColor('#2b2d31')
+          .setTitle('**Avaliação Recebida! 🖤**')
+          .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
+          .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
+          .setDescription(
+`**•** Avaliação: ${texto}
+**•** Total: ${db.total}
+**•** Pedido: ${db.pedidos}`
+          );
+
+        const canal = client.channels.cache.get(CANAL_AVALIACOES);
+        if (canal) canal.send({ embeds: [embed] });
+
+        return interaction.editReply('Avaliação enviada.');
+      }
+
       // ===== RANK =====
       if (interaction.commandName === 'rank') {
 
@@ -170,11 +173,25 @@ client.on('interactionCreate', async (interaction) => {
           .setTitle('🏆 Top Clientes')
           .setDescription(
             rankingArray.map(([id, total], i) => {
-              let medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
 
-              return `${medalha} [<@${id}>](${SITE}/user/${id})\n💰 Total: R$${total}`;
-            }).join('\n\n') +
-            `\n\n> Continue comprando para subir no ranking e ganhar benefícios!`
+              let vip = "Sem cargo";
+              if (total >= 1000) vip = "Diamante";
+              else if (total >= 500) vip = "Ouro";
+              else if (total >= 300) vip = "Prata";
+              else if (total >= 100) vip = "Bronze";
+
+              let proxVip = '';
+              let faltando = 0;
+
+              if (vip === 'Sem cargo') { proxVip = 'Bronze'; faltando = 100 - total; }
+              else if (vip === 'Bronze') { proxVip = 'Prata'; faltando = 300 - total; }
+              else if (vip === 'Prata') { proxVip = 'Ouro'; faltando = 500 - total; }
+              else if (vip === 'Ouro') { proxVip = 'Diamante'; faltando = 1000 - total; }
+
+              return `**${i+1}º** - [<@${id}>](${SITE}/user/${id})
+💰 Total: R$${total} | 🏆 ${vip}
+> Continue comprando para subir no ranking e atingir **${proxVip}**${faltando > 0 ? ` (faltam R$${faltando})` : ''}`;
+            }).join('\n\n')
           );
 
         return interaction.reply({ embeds: [embed] });
@@ -186,61 +203,71 @@ client.on('interactionCreate', async (interaction) => {
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
-    let atual = session.embeds[session.atual] || {};
+    let atual = session.embeds[session.atual];
+    if (!atual) {
+      session.embeds[session.atual] = {};
+      atual = session.embeds[session.atual];
+    }
 
+    // SELECT
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
+
       return interaction.update({
         embeds: [montarEmbed(session.embeds[session.atual])],
         components: gerarMenu(interaction.user.id)
       });
     }
 
+    // BOTÕES
     if (interaction.isButton()) {
 
-      if (interaction.customId === 'add_embed') {
-        session.embeds.push({});
-        session.atual = session.embeds.length - 1;
-      }
+      const id = interaction.customId;
 
-      if (interaction.customId === 'delete') {
-        session.embeds.splice(session.atual, 1);
-        if (session.embeds.length === 0) session.embeds.push({});
-        session.atual = 0;
-      }
+      if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
 
-      if (interaction.customId === 'edit') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
-      if (interaction.customId === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
-      if (interaction.customId === 'buttons') {
         const modal = new ModalBuilder()
-          .setCustomId('btn_create')
-          .setTitle('Criar botão');
+          .setCustomId(id)
+          .setTitle('Editar');
 
         modal.addComponents(
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('label').setLabel('Texto').setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
+            new TextInputBuilder()
+              .setCustomId('input')
+              .setLabel('Digite')
+              .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
           )
         );
 
         return interaction.showModal(modal);
       }
 
-      if (interaction.customId === 'enviar') {
+      if (id === 'add_embed') {
+        session.embeds.push({});
+        session.atual = session.embeds.length - 1;
+      }
+
+      if (id === 'delete') {
+        session.embeds.splice(session.atual, 1);
+        if (session.embeds.length === 0) session.embeds.push({});
+        session.atual = 0;
+      }
+
+      if (id === 'edit') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
+      if (id === 'voltar') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
+      if (id === 'enviar') {
         await interaction.channel.send({
           embeds: session.embeds.map(e => montarEmbed(e))
         });
@@ -254,35 +281,25 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
+    // MODAL
     if (interaction.isModalSubmit()) {
-
-      if (interaction.customId === 'btn_create') {
-        const label = interaction.fields.getTextInputValue('label');
-        const valor = interaction.fields.getTextInputValue('valor');
-
-        session.buttons.push({ label, valor });
-
-        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
-      }
 
       const valor = interaction.fields.getTextInputValue('input') || '⠀';
 
-      if (!session.embeds[session.atual]) session.embeds[session.atual] = {};
-
-      if (interaction.customId === 'titulo') session.embeds[session.atual].title = valor;
-      if (interaction.customId === 'desc') session.embeds[session.atual].description = valor;
-      if (interaction.customId === 'imagem') session.embeds[session.atual].image = valor;
-      if (interaction.customId === 'thumb') session.embeds[session.atual].thumbnail = valor;
+      if (interaction.customId === 'titulo') atual.title = valor;
+      if (interaction.customId === 'desc') atual.description = valor;
+      if (interaction.customId === 'imagem') atual.image = valor;
+      if (interaction.customId === 'thumb') atual.thumbnail = valor;
 
       if (interaction.customId === 'autor') {
-        session.embeds[session.atual].author = {
+        atual.author = {
           nome: valor,
           url: valor.startsWith('http') ? valor : null
         };
       }
 
       return interaction.update({
-        embeds: [montarEmbed(session.embeds[session.atual])],
+        embeds: [montarEmbed(atual)],
         components: gerarEditor()
       });
     }
@@ -296,15 +313,15 @@ client.on('interactionCreate', async (interaction) => {
 function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
 
+  if (data.title) embed.setTitle(data.title);
   embed.setDescription(data.description || '⠀');
 
-  if (data.title) embed.setTitle(data.title);
   if (data.image) embed.setImage(data.image);
   if (data.thumbnail) embed.setThumbnail(data.thumbnail);
 
   if (data.author) {
     embed.setAuthor({
-      name: data.author.nome || '⠀',
+      name: data.author.nome,
       url: data.author.url || undefined
     });
   }
@@ -331,7 +348,6 @@ function gerarMenu(userId) {
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('delete').setLabel('Deletar').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('buttons').setLabel('Botões').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
@@ -352,7 +368,7 @@ function gerarEditor() {
   ];
 }
 
-// ===== WEB =====
+// ===== WEB (RAILWAY) =====
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
