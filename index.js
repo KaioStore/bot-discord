@@ -76,6 +76,7 @@ function gerarEmbedCustom(data) {
     .setDescription(data.description || "Abra um painel interativo de criação de embeds")
     .setColor('#2b2d31')
     .setImage(data.image || null)
+    .setThumbnail(data.thumbnail || null) // ✅ ADICIONADO
     .setAuthor(
       data.author 
         ? { 
@@ -161,6 +162,7 @@ client.on('interactionCreate', async (interaction) => {
             new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('thumbnail').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary), // ✅
             new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
           ),
           new ActionRowBuilder().addComponents(
@@ -226,7 +228,7 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.showModal(modal);
       }
 
-      if (['titulo','desc','imagem'].includes(interaction.customId)) {
+      if (['titulo','desc','imagem','thumbnail'].includes(interaction.customId)) {
         const modal = new ModalBuilder()
           .setCustomId(interaction.customId)
           .setTitle('Editar')
@@ -268,11 +270,12 @@ client.on('interactionCreate', async (interaction) => {
         if (interaction.customId === 'titulo') atual.title = valor;
         if (interaction.customId === 'desc') atual.description = valor;
         if (interaction.customId === 'imagem') atual.image = valor;
+        if (interaction.customId === 'thumbnail') atual.thumbnail = valor;
       }
 
-      return interaction.reply({
+      return interaction.update({
         embeds: [gerarEmbedCustom(atual)],
-        ephemeral: true
+        components: interaction.message.components
       });
     }
 
