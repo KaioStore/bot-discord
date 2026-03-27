@@ -56,10 +56,12 @@ function salvar() {
 // ===== EMBED SYSTEM =====
 const embedSessions = {};
 
+// ===== BOT =====
 client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
 });
 
+// ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
   try {
 
@@ -68,6 +70,7 @@ client.on('interactionCreate', async (interaction) => {
     // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
+      // ===== EMBED =====
       if (interaction.commandName === 'embed') {
         embedSessions[interaction.user.id] = {
           embeds: [{}],
@@ -79,7 +82,7 @@ client.on('interactionCreate', async (interaction) => {
           embeds: [
             new EmbedBuilder()
               .setColor('#2b2d31')
-              .setTitle('Editor de Embeds')
+              .setTitle('Abrir painel embed')
               .setDescription('Gerencie seus embeds abaixo')
           ],
           components: gerarMenu(interaction.user.id),
@@ -87,6 +90,7 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
+      // ===== SALDO =====
       if (interaction.commandName === 'saldo') {
         const user = interaction.options.getUser('usuario') || interaction.user;
         const total = gastos[user.id] || 0;
@@ -103,31 +107,7 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      if (interaction.commandName === 'gastar') {
-        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
-
-        const user = interaction.options.getUser('usuario');
-        const valor = interaction.options.getNumber('valor');
-
-        gastos[user.id] = (gastos[user.id] || 0) + valor;
-        salvar();
-
-        return interaction.reply({ content: `Adicionado R$${valor} para ${user.username}`, ephemeral: true });
-      }
-
-      if (interaction.commandName === 'removergasto') {
-        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
-
-        const user = interaction.options.getUser('usuario');
-        const valor = interaction.options.getNumber('valor');
-
-        gastos[user.id] = (gastos[user.id] || 0) - valor;
-        if (gastos[user.id] < 0) gastos[user.id] = 0;
-        salvar();
-
-        return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, ephemeral: true });
-      }
-
+      // ===== AVALIAR (MANTIDO) =====
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -144,11 +124,7 @@ client.on('interactionCreate', async (interaction) => {
           .setTitle('**Avaliação Recebida! 🖤**')
           .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
           .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-          .setDescription(
-`**•** Avaliação: ${texto}
-**•** Total: ${db.total}
-**•** Pedido: ${db.pedidos}`
-          );
+          .setDescription(`**•** Avaliação: ${texto}\n**•** Total: ${db.total}\n**•** Pedido: ${db.pedidos}`);
 
         const canal = client.channels.cache.get(CANAL_AVALIACOES);
         if (canal) canal.send({ embeds: [embed] });
@@ -156,36 +132,54 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply('Avaliação enviada.');
       }
 
+      // ===== GASTAR =====
+      if (interaction.commandName === 'gastar') {
+        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+
+        const user = interaction.options.getUser('usuario');
+        const valor = interaction.options.getNumber('valor');
+
+        gastos[user.id] = (gastos[user.id] || 0) + valor;
+        salvar();
+
+        return interaction.reply({ content: `Adicionado R$${valor} para ${user.username}`, ephemeral: true });
+      }
+
+      // ===== REMOVER =====
+      if (interaction.commandName === 'removergasto') {
+        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+
+        const user = interaction.options.getUser('usuario');
+        const valor = interaction.options.getNumber('valor');
+
+        gastos[user.id] = (gastos[user.id] || 0) - valor;
+        if (gastos[user.id] < 0) gastos[user.id] = 0;
+        salvar();
+
+        return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, ephemeral: true });
+      }
+
+      // ===== RANK =====
       if (interaction.commandName === 'rank') {
-        const rankingArray = Object.entries(gastos).sort(([,a],[,b]) => b - a);
+
+        const rankingArray = Object.entries(gastos)
+          .sort(([,a],[,b]) => b - a);
 
         const embed = new EmbedBuilder()
           .setColor('#2b2d31')
-          .setTitle('🏆 Ranking de Gastos')
+          .setTitle('🏆 Top Clientes')
           .setDescription(
             rankingArray.map(([id, total], i) => {
+              let medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
 
-              let vip = "Sem cargo";
-              if (total >= 1000) vip = "Diamante";
-              else if (total >= 500) vip = "Ouro";
-              else if (total >= 300) vip = "Prata";
-              else if (total >= 100) vip = "Bronze";
-
-              let proxVip = '';
-              let faltando = 0;
-
-              if (vip === 'Sem cargo') { proxVip = 'Bronze'; faltando = 100 - total; }
-              else if (vip === 'Bronze') { proxVip = 'Prata'; faltando = 300 - total; }
-              else if (vip === 'Prata') { proxVip = 'Ouro'; faltando = 500 - total; }
-              else if (vip === 'Ouro') { proxVip = 'Diamante'; faltando = 1000 - total; }
-
-              return `**${i+1}º** - [<@${id}>](${SITE}/user/${id}) — R$${total} — 🏆 ${vip}
-> Continue comprando para atingir **${proxVip}**${faltando > 0 ? ` (faltam R$${faltando})` : ''}`;
-            }).join('\n\n')
+              return `${medalha} [<@${id}>](${SITE}/user/${id})\n💰 Total: R$${total}`;
+            }).join('\n\n') +
+            `\n\n> Continue comprando para subir no ranking e ganhar benefícios!`
           );
 
         return interaction.reply({ embeds: [embed] });
       }
+
     }
 
     // ===== EMBED SYSTEM =====
@@ -196,7 +190,6 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
-
       return interaction.update({
         embeds: [montarEmbed(session.embeds[session.atual])],
         components: gerarMenu(interaction.user.id)
@@ -204,29 +197,6 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isButton()) {
-
-      if (['titulo','desc','imagem','thumb','autor'].includes(interaction.customId)) {
-
-        const modal = new ModalBuilder()
-          .setCustomId(interaction.customId)
-          .setTitle('Editar');
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('input')
-              .setLabel('Digite')
-              .setRequired(true)
-              .setStyle(
-                interaction.customId === 'desc'
-                  ? TextInputStyle.Paragraph
-                  : TextInputStyle.Short
-              )
-          )
-        );
-
-        return interaction.showModal(modal);
-      }
 
       if (interaction.customId === 'add_embed') {
         session.embeds.push({});
@@ -253,6 +223,31 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
+      if (interaction.customId === 'buttons') {
+        const modal = new ModalBuilder()
+          .setCustomId('btn_create')
+          .setTitle('Criar botão');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('label').setLabel('Texto').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      if (interaction.customId === 'enviar') {
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e))
+        });
+
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
+      }
+
       return interaction.update({
         embeds: [montarEmbed(session.embeds[session.atual])],
         components: gerarMenu(interaction.user.id)
@@ -260,6 +255,15 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isModalSubmit()) {
+
+      if (interaction.customId === 'btn_create') {
+        const label = interaction.fields.getTextInputValue('label');
+        const valor = interaction.fields.getTextInputValue('valor');
+
+        session.buttons.push({ label, valor });
+
+        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+      }
 
       const valor = interaction.fields.getTextInputValue('input') || '⠀';
 
@@ -272,15 +276,14 @@ client.on('interactionCreate', async (interaction) => {
 
       if (interaction.customId === 'autor') {
         session.embeds[session.atual].author = {
-          name: valor,
-          url: valor.startsWith('http') ? valor : undefined
+          nome: valor,
+          url: valor.startsWith('http') ? valor : null
         };
       }
 
-      return interaction.reply({
+      return interaction.update({
         embeds: [montarEmbed(session.embeds[session.atual])],
-        components: gerarEditor(),
-        ephemeral: true
+        components: gerarEditor()
       });
     }
 
@@ -293,16 +296,15 @@ client.on('interactionCreate', async (interaction) => {
 function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
 
-  if (data.title) embed.setTitle(data.title);
-  if (data.description) embed.setDescription(data.description);
-  else embed.setDescription('⠀');
+  embed.setDescription(data.description || '⠀');
 
+  if (data.title) embed.setTitle(data.title);
   if (data.image) embed.setImage(data.image);
   if (data.thumbnail) embed.setThumbnail(data.thumbnail);
 
   if (data.author) {
     embed.setAuthor({
-      name: data.author.name || '⠀',
+      name: data.author.nome || '⠀',
       url: data.author.url || undefined
     });
   }
@@ -350,6 +352,7 @@ function gerarEditor() {
   ];
 }
 
+// ===== WEB =====
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
@@ -357,8 +360,8 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('Servidor web rodando na porta ' + PORT);
+  console.log('Servidor rodando');
 });
 
+// ===== LOGIN =====
 client.login(TOKEN);
-setInterval(() => {}, 1000);
