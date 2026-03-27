@@ -40,6 +40,7 @@ let gastos = {};
 
 const embedSessions = {};
 
+// ===== EMBED =====
 function gerarEmbedCustom(data) {
   return new EmbedBuilder()
     .setTitle(data.title || null)
@@ -89,7 +90,7 @@ client.on('interactionCreate', async (interaction) => {
       return atualizarPainel(interaction);
     }
 
-    // ===== SELECT MENU =====
+    // ===== SELECT =====
     if (interaction.isStringSelectMenu()) {
 
       const session = embedSessions[interaction.user.id];
@@ -108,13 +109,15 @@ client.on('interactionCreate', async (interaction) => {
 
       const atual = session.lista[session.atual];
 
+      // ADD EMBED
       if (interaction.customId === 'add_embed') {
         session.lista.push({});
         session.atual = session.lista.length - 1;
+
         return atualizarPainel(interaction);
       }
 
-      // ===== MODAIS =====
+      // ABRIR MODAL PADRÃO
       function abrirModal(id, label, value, style = TextInputStyle.Short) {
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -142,7 +145,7 @@ client.on('interactionCreate', async (interaction) => {
         return abrirModal('imagem', 'URL da imagem', atual.image);
 
       if (interaction.customId === 'thumb')
-        return abrirModal('thumb', 'Thumbnail URL', atual.thumb);
+        return abrirModal('thumb', 'Thumbnail', atual.thumb);
 
       if (interaction.customId === 'autor') {
         const modal = new ModalBuilder()
@@ -201,7 +204,7 @@ client.on('interactionCreate', async (interaction) => {
       return atualizarPainel(interaction);
     }
 
-    // ===== AVALIAR (SEU ORIGINAL) =====
+    // ===== AVALIAR =====
     if (interaction.isChatInputCommand() && interaction.commandName === 'avaliar') {
 
       if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
