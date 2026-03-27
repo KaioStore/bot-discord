@@ -30,6 +30,7 @@ app.use(cors());
 // ===== CONFIG =====
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
+const SITE = 'https://kaio-rank.vercel.app';
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
@@ -49,6 +50,7 @@ if (fs.existsSync('./gastos.json')) {
 
 function salvar() {
   fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+  fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
 }
 
 // ===== EMBED SYSTEM =====
@@ -69,6 +71,7 @@ client.on('interactionCreate', async (interaction) => {
     // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
+      // ==== EMBED ====
       if (interaction.commandName === 'embed') {
         embedSessions[interaction.user.id] = {
           embeds: [{}],
@@ -87,6 +90,7 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
+      // ==== SALDO ====
       if (interaction.commandName === 'saldo') {
         const user = interaction.options.getUser('usuario') || interaction.user;
         const total = gastos[user.id] || 0;
@@ -103,6 +107,7 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
+      // ==== AVALIAR ====
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -131,8 +136,7 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply('Avaliação enviada.');
       }
 
-      // ===== NOVOS COMANDOS =====
-
+      // ==== GASTAR ====
       if (interaction.commandName === 'gastar') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -140,31 +144,87 @@ client.on('interactionCreate', async (interaction) => {
         const valor = interaction.options.getNumber('valor');
 
         gastos[user.id] = (gastos[user.id] || 0) + valor;
-        fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
+        salvar();
 
-        return interaction.reply({ content: `💰 Adicionado R$${valor} para ${user.username}`, ephemeral: true });
+        return interaction.reply({ content: `Adicionado R$${valor} para ${user.username}`, ephemeral: true });
       }
 
+      // ==== REMOVER GASTO ====
       if (interaction.commandName === 'removergasto') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
         const user = interaction.options.getUser('usuario');
         const valor = interaction.options.getNumber('valor');
 
-        gastos[user.id] = Math.max((gastos[user.id] || 0) - valor, 0);
-        fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
+        gastos[user.id] = (gastos[user.id] || 0) - valor;
+        if (gastos[user.id] < 0) gastos[user.id] = 0;
+        salvar();
 
-        return interaction.reply({ content: `💸 Removido R$${valor} de ${user.username}`, ephemeral: true });
+        return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, ephemeral: true });
       }
 
+      // ==== RANK ====
       if (interaction.commandName === 'rank') {
-        const ranking = Object.entries(gastos)
-          .sort(([,a],[,b]) => b - a)
-          .slice(0, 10)
-          .map(([id, total], i) => `${i+1}. <@${id}> — R$${total}`)
-          .join('\n') || 'Sem registros ainda';
 
-        return interaction.reply({ content: `🏆 Ranking de gastos:\n${ranking}`, ephemeral: true });
+        const rankingArray = Object.entries(gastos)
+          .sort(([,a],[,b]) => b - a);
+
+        const page = 0; // primeira página
+        const itemsPerPage = 10;
+        const totalPages = Math.ceil(rankingArray.length / itemsPerPage);
+
+        const gerarEmbedRank = (pagina = 0) => {
+          const start = pagina * itemsPerPage;
+          const end = start + itemsPerPage;
+          const slice = rankingArray.slice(start, end);
+
+          return new EmbedBuilder()
+            .setTitle('🏆 Ranking de Gastos')
+            .setColor('#2b2d31')
+            .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
+            .setDescription(slice.map(([id, total], i) => {
+              let vip = "Sem cargo";
+              if (total >= 1000) vip = "Diamante";
+              else if (total >= 500) vip = "Ouro";
+              else if (total >= 300) vip = "Prata";
+              else if (total >= 100) vip = "Bronze";
+
+              let proxVip = '';
+              if (vip === 'Sem cargo') proxVip = 'Bronze';
+              else if (vip === 'Bronze') proxVip = 'Prata';
+              else if (vip === 'Prata') proxVip = 'Ouro';
+              else if (vip === 'Ouro') proxVip = 'Diamante';
+              else proxVip = 'Máximo';
+
+              const faltando = vip === 'Diamante' ? 0 : (vip==='Sem cargo'?100: vip==='Bronze'?200: vip==='Prata'?200: vip==='Ouro'?500:0);
+              const link = `${SITE}/user/${id}`;
+
+              return `**${start+i+1}º** - [<@${id}>](${link}) — R$${total} — 🏆 ${vip}\n> Continue comprando para atingir **${proxVip}**`;
+            }).join('\n'));
+        };
+
+        const row = new ActionRowBuilder()
+          .addComponents(
+            new ButtonBuilder().setCustomId('prevPage').setLabel('⬅️ Anterior').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('nextPage').setLabel('Próxima ➡️').setStyle(ButtonStyle.Primary)
+          );
+
+        const message = await interaction.reply({ embeds: [gerarEmbedRank(page)], components: rankingArray.length > itemsPerPage ? [row] : [], fetchReply: true });
+
+        // ===== PAGINAÇÃO =====
+        const collector = message.createMessageComponentCollector({ time: 60000 });
+
+        let currentPage = page;
+
+        collector.on('collect', i => {
+          if (i.customId === 'prevPage') {
+            currentPage = currentPage > 0 ? currentPage - 1 : totalPages - 1;
+          } else if (i.customId === 'nextPage') {
+            currentPage = currentPage < totalPages - 1 ? currentPage + 1 : 0;
+          }
+
+          i.update({ embeds: [gerarEmbedRank(currentPage)], components: rankingArray.length > itemsPerPage ? [row] : [] });
+        });
       }
 
     } // FECHA COMANDOS
