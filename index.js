@@ -35,7 +35,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ===== SISTEMA EMBED (ADICIONADO) =====
+// ===== SISTEMA EMBED (NOVO) =====
 const embedSessions = {};
 const embedMessages = {};
 
@@ -105,11 +105,9 @@ app.get('/perfil/:id', async (req, res) => {
   }
 });
 
-// ===== RANKING =====
 app.get('/ranking', async (req, res) => {
   try {
     const ranking = Object.entries(gastos).sort((a, b) => b[1] - a[1]);
-
     const lista = [];
 
     for (let i = 0; i < ranking.length; i++) {
@@ -145,8 +143,8 @@ client.on('ready', () => {
 // ===== GERAR EMBED =====
 function gerarEmbed(data) {
   return new EmbedBuilder()
-    .setTitle(data.title || 'Título')
-    .setDescription(data.description || 'Descrição')
+    .setTitle(data.title || null)
+    .setDescription(data.description || null)
     .setColor(data.color || '#2b2d31')
     .setThumbnail(data.thumbnail || null)
     .setImage(data.image || null)
@@ -177,7 +175,7 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ===== EMBED COMPLETO =====
+    // ===== EMBED AVANÇADO =====
     if (interaction.commandName === 'embed') {
 
       embedSessions[interaction.user.id] = {
@@ -185,45 +183,18 @@ client.on('interactionCreate', async (interaction) => {
         lista: [{}]
       };
 
-      const select = new StringSelectMenuBuilder()
-        .setCustomId('select_embed')
-        .setPlaceholder('Selecionar embed')
-        .addOptions([{ label: 'Embed 1', value: '0' }]);
-
-      const row1 = new ActionRowBuilder().addComponents(select);
-
-      const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('add_embed').setLabel('+ Embed').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('edit_title').setLabel('Título').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('edit_desc').setLabel('Descrição').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('edit_color').setLabel('Cor').setStyle(ButtonStyle.Secondary)
-      );
-
-      const row3 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('edit_image').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('edit_thumb').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('edit_footer').setLabel('Rodapé').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('edit_author').setLabel('Autor').setStyle(ButtonStyle.Secondary)
-      );
-
-      const row4 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('send_embed').setLabel('Enviar').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('edit_message').setLabel('Editar Msg').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('reset_embed').setLabel('Resetar').setStyle(ButtonStyle.Danger)
-      );
-
       return interaction.reply({
-        embeds: [gerarEmbed(embedSessions[interaction.user.id].lista[0])],
-        components: [row1, row2, row3, row4],
+        embeds: [gerarEmbed({})],
+        components: [painel()],
         ephemeral: true
       });
     }
 
-    // ===== AVALIAR =====
+    // ===== AVALIAR (SEU ORIGINAL) =====
     if (interaction.commandName === 'avaliar') {
 
       if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: 'Só administradores podem usar.', ephemeral: true });
+        return interaction.reply({ content: 'Só administradores podem usar esse comando.', ephemeral: true });
       }
 
       const texto = interaction.options.getString('texto');
@@ -237,7 +208,13 @@ client.on('interactionCreate', async (interaction) => {
       const embed = new EmbedBuilder()
         .setColor('#2b2d31')
         .setTitle('**Avaliação Recebida! 🖤**')
-        .setDescription(`**•** ${texto}`);
+        .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
+        .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
+        .setDescription(
+`**•** Avaliação: ${texto}
+**•** Total: ${db.total}
+**•** Pedido: ${db.pedidos}`
+        );
 
       const canal = client.channels.cache.get(CANAL_AVALIACOES);
       if (canal) canal.send({ embeds: [embed] });
@@ -247,6 +224,7 @@ client.on('interactionCreate', async (interaction) => {
 
     // ===== GASTAR =====
     if (interaction.commandName === 'gastar') {
+
       const user = interaction.options.getUser('usuario');
       const valor = interaction.options.getNumber('valor');
 
@@ -255,122 +233,167 @@ client.on('interactionCreate', async (interaction) => {
 
       salvarGastos();
 
-      return interaction.reply({ content: `Gasto adicionado para ${user.username}`, ephemeral: true });
+      return interaction.reply({
+        content: `Gasto adicionado para ${user.username}`,
+        ephemeral: true
+      });
     }
 
     // ===== REMOVER =====
     if (interaction.commandName === 'removergasto') {
+
       const user = interaction.options.getUser('usuario');
       const valor = interaction.options.getNumber('valor');
 
       if (!gastos[user.id]) gastos[user.id] = 0;
+
       gastos[user.id] -= valor;
 
       if (gastos[user.id] <= 0) delete gastos[user.id];
 
       salvarGastos();
 
-      return interaction.reply({ content: `Gasto removido`, ephemeral: true });
+      return interaction.reply({
+        content: `Gasto removido de ${user.username}`,
+        ephemeral: true
+      });
     }
   }
 
-  // ===== SELECT =====
-  if (interaction.isStringSelectMenu()) {
-    const session = embedSessions[interaction.user.id];
-    if (!session) return;
-
-    session.atual = parseInt(interaction.values[0]);
-
-    return interaction.update({
-      embeds: [gerarEmbed(session.lista[session.atual])]
-    });
-  }
-
-  // ===== BOTÕES =====
-  if (interaction.isButton()) {
+  // ===== BOTÕES / MODAIS / SELECT =====
+  if (interaction.isButton() || interaction.isModalSubmit() || interaction.isStringSelectMenu()) {
 
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
     const atual = session.lista[session.atual];
 
-    const criarModal = (id, label) => {
-      const modal = new ModalBuilder().setCustomId(id).setTitle(label);
+    // BOTÕES
+    if (interaction.isButton()) {
 
-      const input = new TextInputBuilder()
-        .setCustomId('input')
-        .setLabel(label)
-        .setStyle(TextInputStyle.Short);
+      if (interaction.customId === 'add') {
+        session.lista.push({});
+        session.atual = session.lista.length - 1;
+      }
 
-      modal.addComponents(new ActionRowBuilder().addComponents(input));
-      return modal;
-    };
-
-    if (interaction.customId === 'add_embed') {
-      session.lista.push({});
-    }
-
-    if (interaction.customId === 'edit_title') return interaction.showModal(criarModal('title', 'Título'));
-    if (interaction.customId === 'edit_desc') return interaction.showModal(criarModal('desc', 'Descrição'));
-    if (interaction.customId === 'edit_color') return interaction.showModal(criarModal('color', 'Cor HEX'));
-    if (interaction.customId === 'edit_image') return interaction.showModal(criarModal('image', 'URL Imagem'));
-    if (interaction.customId === 'edit_thumb') return interaction.showModal(criarModal('thumb', 'Thumbnail'));
-    if (interaction.customId === 'edit_footer') return interaction.showModal(criarModal('footer', 'Rodapé'));
-    if (interaction.customId === 'edit_author') return interaction.showModal(criarModal('author', 'Autor'));
-
-    if (interaction.customId === 'send_embed') {
-      const msg = await interaction.channel.send({
-        embeds: session.lista.map(e => gerarEmbed(e))
-      });
-      embedMessages[interaction.user.id] = msg;
-    }
-
-    if (interaction.customId === 'edit_message') {
-      const msg = embedMessages[interaction.user.id];
-      if (msg) {
-        await msg.edit({
+      if (interaction.customId === 'send') {
+        const msg = await interaction.channel.send({
           embeds: session.lista.map(e => gerarEmbed(e))
         });
+        embedMessages[interaction.user.id] = msg;
       }
+
+      if (interaction.customId === 'editmsg') {
+        const msg = embedMessages[interaction.user.id];
+        if (msg) {
+          await msg.edit({
+            embeds: session.lista.map(e => gerarEmbed(e))
+          });
+        }
+      }
+
+      if (interaction.customId === 'export') {
+        return interaction.reply({
+          content: '```json\n' + JSON.stringify(atual, null, 2) + '\n```',
+          ephemeral: true
+        });
+      }
+
+      if (interaction.customId === 'import') {
+        return interaction.showModal(modal('import', 'Colar JSON', true));
+      }
+
+      const map = {
+        title: 'Título',
+        desc: 'Descrição',
+        color: 'Cor HEX',
+        image: 'Imagem URL',
+        thumb: 'Thumbnail URL',
+        footer: 'Rodapé',
+        author: 'Autor'
+      };
+
+      if (map[interaction.customId]) {
+        return interaction.showModal(modal(interaction.customId, map[interaction.customId]));
+      }
+
+      return interaction.update({
+        embeds: [gerarEmbed(atual)],
+        components: [painel()]
+      });
     }
 
-    if (interaction.customId === 'reset_embed') {
-      session.lista = [{}];
-      session.atual = 0;
+    // MODAL
+    if (interaction.isModalSubmit()) {
+
+      const val = interaction.fields.getTextInputValue('input');
+
+      const map = {
+        title: 'title',
+        desc: 'description',
+        color: 'color',
+        image: 'image',
+        thumb: 'thumbnail',
+        footer: 'footer',
+        author: 'author'
+      };
+
+      if (interaction.customId === 'import') {
+        try {
+          session.lista[session.atual] = JSON.parse(val);
+        } catch {
+          return interaction.reply({ content: 'JSON inválido', ephemeral: true });
+        }
+      } else {
+        atual[map[interaction.customId]] = val;
+      }
+
+      return interaction.update({
+        embeds: [gerarEmbed(session.lista[session.atual])],
+        components: [painel()]
+      });
     }
-
-    return interaction.update({
-      embeds: [gerarEmbed(atual)]
-    });
-  }
-
-  // ===== MODAL =====
-  if (interaction.isModalSubmit()) {
-
-    const session = embedSessions[interaction.user.id];
-    if (!session) return;
-
-    const atual = session.lista[session.atual];
-    const value = interaction.fields.getTextInputValue('input');
-
-    const map = {
-      title: 'title',
-      desc: 'description',
-      color: 'color',
-      image: 'image',
-      thumb: 'thumbnail',
-      footer: 'footer',
-      author: 'author'
-    };
-
-    atual[map[interaction.customId]] = value;
-
-    return interaction.update({
-      embeds: [gerarEmbed(atual)]
-    });
   }
 
 });
+
+// ===== UI =====
+function painel() {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('add').setLabel('+ Embed').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('title').setLabel('Título').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('color').setLabel('Cor').setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('image').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('footer').setLabel('Rodapé').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('author').setLabel('Autor').setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('send').setLabel('Enviar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('editmsg').setLabel('Editar Msg').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('import').setLabel('Importar JSON').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('export').setLabel('Exportar JSON').setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
+function modal(id, label, big = false) {
+  return new ModalBuilder()
+    .setCustomId(id)
+    .setTitle(label)
+    .addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('input')
+          .setLabel(label)
+          .setStyle(big ? TextInputStyle.Paragraph : TextInputStyle.Short)
+      )
+    );
+}
 
 client.login(TOKEN);
 setInterval(() => {}, 1000);
