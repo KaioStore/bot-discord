@@ -163,53 +163,72 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, ephemeral: true });
       }
 
-      // ==== RANK ====
-      if (interaction.commandName === 'rank') {
+      // ===== RANK EXEMPLO COMPLETO =====
+if (interaction.commandName === 'rank') {
 
-        const rankingArray = Object.entries(gastos)
-          .sort(([,a],[,b]) => b - a);
+  const rankingArray = Object.entries(gastos)
+    .sort(([,a],[,b]) => b - a);
 
-        const page = 0; // primeira página
-        const itemsPerPage = 10;
-        const totalPages = Math.ceil(rankingArray.length / itemsPerPage);
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(rankingArray.length / itemsPerPage);
 
-        const gerarEmbedRank = (pagina = 0) => {
-          const start = pagina * itemsPerPage;
-          const end = start + itemsPerPage;
-          const slice = rankingArray.slice(start, end);
+  let currentPage = 0;
 
-          return new EmbedBuilder()
-            .setTitle('🏆 Ranking de Gastos')
-            .setColor('#2b2d31')
-            .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
-            .setDescription(slice.map(([id, total], i) => {
-              let vip = "Sem cargo";
-              if (total >= 1000) vip = "Diamante";
-              else if (total >= 500) vip = "Ouro";
-              else if (total >= 300) vip = "Prata";
-              else if (total >= 100) vip = "Bronze";
+  const gerarEmbedRank = (page = 0) => {
+    const start = page * itemsPerPage;
+    const end = start + itemsPerPage;
+    const slice = rankingArray.slice(start, end);
 
-              let proxVip = '';
-              if (vip === 'Sem cargo') proxVip = 'Bronze';
-              else if (vip === 'Bronze') proxVip = 'Prata';
-              else if (vip === 'Prata') proxVip = 'Ouro';
-              else if (vip === 'Ouro') proxVip = 'Diamante';
-              else proxVip = 'Máximo';
+    return new EmbedBuilder()
+      .setTitle('🏆 Ranking de Gastos')
+      .setColor('#2b2d31')
+      .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
+      .setDescription(slice.map(([id, total], i) => {
+        let vip = "Sem cargo";
+        if (total >= 1000) vip = "Diamante";
+        else if (total >= 500) vip = "Ouro";
+        else if (total >= 300) vip = "Prata";
+        else if (total >= 100) vip = "Bronze";
 
-              const faltando = vip === 'Diamante' ? 0 : (vip==='Sem cargo'?100: vip==='Bronze'?200: vip==='Prata'?200: vip==='Ouro'?500:0);
-              const link = `${SITE}/user/${id}`;
+        let proxVip = '';
+        let faltando = 0;
+        if (vip === 'Sem cargo') { proxVip = 'Bronze'; faltando = 100 - total; }
+        else if (vip === 'Bronze') { proxVip = 'Prata'; faltando = 300 - total; }
+        else if (vip === 'Prata') { proxVip = 'Ouro'; faltando = 500 - total; }
+        else if (vip === 'Ouro') { proxVip = 'Diamante'; faltando = 1000 - total; }
+        else { proxVip = 'Máximo'; faltando = 0; }
 
-              return `**${start+i+1}º** - [<@${id}>](${link}) — R$${total} — 🏆 ${vip}\n> Continue comprando para atingir **${proxVip}**`;
-            }).join('\n'));
-        };
+        const link = `https://kaio-rank.vercel.app/user/${id}`;
 
-        const row = new ActionRowBuilder()
-          .addComponents(
-            new ButtonBuilder().setCustomId('prevPage').setLabel('⬅️ Anterior').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('nextPage').setLabel('Próxima ➡️').setStyle(ButtonStyle.Primary)
-          );
+        return `**${start+i+1}º** - [<@${id}>](${link}) — R$${total} — 🏆 ${vip}\n> Continue comprando para atingir **${proxVip}**${faltando > 0 ? ` (faltam R$${faltando})` : ''}`;
+      }).join('\n'));
+  };
 
-        const message = await interaction.reply({ embeds: [gerarEmbedRank(page)], components: rankingArray.length > itemsPerPage ? [row] : [], fetchReply: true });
+  const row = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder().setCustomId('prevPage').setLabel('⬅️ Anterior').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('nextPage').setLabel('Próxima ➡️').setStyle(ButtonStyle.Primary)
+    );
+
+  const message = await interaction.reply({ 
+    embeds: [gerarEmbedRank(currentPage)], 
+    components: rankingArray.length > itemsPerPage ? [row] : [], 
+    fetchReply: true 
+  });
+
+  // Coletores de botão para paginação
+  const collector = message.createMessageComponentCollector({ time: 60000 });
+
+  collector.on('collect', i => {
+    if (i.customId === 'prevPage') {
+      currentPage = currentPage > 0 ? currentPage - 1 : totalPages - 1;
+    } else if (i.customId === 'nextPage') {
+      currentPage = currentPage < totalPages - 1 ? currentPage + 1 : 0;
+    }
+    i.update({ embeds: [gerarEmbedRank(currentPage)], components: rankingArray.length > itemsPerPage ? [row] : [] });
+  });
+
+}
 
         // ===== PAGINAÇÃO =====
         const collector = message.createMessageComponentCollector({ time: 60000 });
