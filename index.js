@@ -403,6 +403,16 @@ function gerarEditor() {
   ];
 }
 
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send('Bot online');
+});
+
+app.listen(PORT, () => {
+  console.log('Servidor web rodando na porta ' + PORT);
+});
+
 // ===== LOGIN =====
 client.login(TOKEN);
 setInterval(() => {}, 1000);
