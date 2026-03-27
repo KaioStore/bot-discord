@@ -120,36 +120,6 @@ app.get('/perfil/:id', async (req, res) => {
   }
 });
 
-app.get('/ranking', async (req, res) => {
-  if (!client.isReady()) {
-    return setTimeout(() => res.redirect('/ranking'), 2000);
-  }
-
-  try {
-    const ranking = Object.entries(gastos).sort((a, b) => b[1] - a[1]);
-    const lista = [];
-
-    for (let i = 0; i < ranking.length; i++) {
-      const userId = ranking[i][0];
-      const total = ranking[i][1];
-
-      let nome = "Usuário";
-
-      try {
-        const user = await client.users.fetch(userId);
-        nome = user.username;
-      } catch {}
-
-      lista.push({ id: userId, nome, total });
-    }
-
-    res.json(lista);
-
-  } catch {
-    res.json([]);
-  }
-});
-
 app.listen(3000, () => {
   console.log('Web server ligado');
 });
@@ -185,7 +155,7 @@ client.on('interactionCreate', async (interaction) => {
       embedSessions[interaction.user.id] = { lista: [{}], atual: 0 };
 
       return interaction.reply({
-        embeds: [gerarEmbed({})],
+        embeds: [gerarEmbedCustom({})],
         components: [
           new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
@@ -218,7 +188,7 @@ client.on('interactionCreate', async (interaction) => {
 
       if (interaction.customId === 'enviar') {
         const msg = await interaction.channel.send({
-          embeds: session.lista.map(e => gerarEmbed(e))
+          embeds: session.lista.map(e => gerarEmbedCustom(e))
         });
 
         embedMessages[interaction.user.id] = msg;
@@ -228,15 +198,38 @@ client.on('interactionCreate', async (interaction) => {
         const msg = embedMessages[interaction.user.id];
         if (msg) {
           await msg.edit({
-            embeds: session.lista.map(e => gerarEmbed(e))
+            embeds: session.lista.map(e => gerarEmbedCustom(e))
           });
         }
       }
 
-      if (['titulo','desc','imagem','autor'].includes(interaction.customId)) {
+      if (interaction.customId === 'autor') {
+        const modal = new ModalBuilder()
+          .setCustomId('autor_modal')
+          .setTitle('Autor')
+          .addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('nome')
+                .setLabel('Nome do autor')
+                .setStyle(TextInputStyle.Short)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('icon')
+                .setLabel('URL do avatar')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(false)
+            )
+          );
+
+        return interaction.showModal(modal);
+      }
+
+      if (['titulo','desc','imagem'].includes(interaction.customId)) {
         const modal = new ModalBuilder()
           .setCustomId(interaction.customId)
-          .setTitle('Editar Embed')
+          .setTitle('Editar')
           .addComponents(
             new ActionRowBuilder().addComponents(
               new TextInputBuilder()
@@ -254,7 +247,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       return interaction.update({
-        embeds: [gerarEmbed(atual)]
+        embeds: [gerarEmbedCustom(atual)]
       });
     }
 
@@ -265,46 +258,25 @@ client.on('interactionCreate', async (interaction) => {
       if (!session) return;
 
       const atual = session.lista[session.atual];
-      const valor = interaction.fields.getTextInputValue('input');
 
-      if (interaction.customId === 'titulo') atual.title = valor;
-      if (interaction.customId === 'desc') atual.description = valor;
-      if (interaction.customId === 'imagem') atual.image = valor;
-if (interaction.customId === 'autor_modal') {
-  const nome = interaction.fields.getTextInputValue('nome');
-  const icon = interaction.fields.getTextInputValue('icon');
+      if (interaction.customId === 'autor_modal') {
+        atual.author = interaction.fields.getTextInputValue('nome');
+        atual.authorIcon = interaction.fields.getTextInputValue('icon');
+      } else {
+        const valor = interaction.fields.getTextInputValue('input');
 
-  atual.author = nome;
-  atual.authorIcon = icon;
-}
-  const modal = new ModalBuilder()
-    .setCustomId('autor_modal')
-    .setTitle('Autor')
-    .addComponents(
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('nome')
-          .setLabel('Nome do autor')
-          .setStyle(TextInputStyle.Short)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('icon')
-          .setLabel('URL da imagem (avatar)')
-          .setStyle(TextInputStyle.Short)
-          .setRequired(false)
-      )
-    );
+        if (interaction.customId === 'titulo') atual.title = valor;
+        if (interaction.customId === 'desc') atual.description = valor;
+        if (interaction.customId === 'imagem') atual.image = valor;
+      }
 
-  return interaction.showModal(modal);
-}
       return interaction.reply({
-        embeds: [gerarEmbed(atual)],
+        embeds: [gerarEmbedCustom(atual)],
         ephemeral: true
       });
     }
 
-    // ===== AVALIAR =====
+    // ===== AVALIAR (100% ORIGINAL) =====
     if (interaction.isChatInputCommand() && interaction.commandName === 'avaliar') {
 
       if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
@@ -318,11 +290,16 @@ if (interaction.customId === 'autor_modal') {
       salvar();
 
       const embed = new EmbedBuilder()
-  .setColor('#2b2d31')
-  .setTitle('**Avaliação Recebida! 🖤**')
-  .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
-  .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-      
+        .setColor('#2b2d31')
+        .setTitle('**Avaliação Recebida! 🖤**')
+        .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
+        .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
+        .setDescription(
+`**•** Avaliação: ${texto}
+**•** Total: ${db.total}
+**•** Pedido: ${db.pedidos}`
+        );
+
       const canal = client.channels.cache.get(CANAL_AVALIACOES);
       if (canal) canal.send({ embeds: [embed] });
 
