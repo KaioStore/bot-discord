@@ -32,7 +32,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ===== EMBED TEMP =====
+// ===== SISTEMA EMBED =====
 let embedsTemp = {};
 
 // ===== BANCO AVALIAÇÕES =====
@@ -143,7 +143,7 @@ client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
 });
 
-// ===== COMANDOS =====
+// ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
 
   try {
@@ -153,113 +153,105 @@ client.on('interactionCreate', async (interaction) => {
 
       if (!embedsTemp[interaction.user.id]) return;
 
-      // TÍTULO
-      if (interaction.customId === 'titulo') {
+      const criarModal = (id, label, style = TextInputStyle.Short) => {
         const modal = new ModalBuilder()
-          .setCustomId('modalTitulo')
-          .setTitle('Editar Título');
+          .setCustomId(id)
+          .setTitle(label);
 
         const input = new TextInputBuilder()
-          .setCustomId('inputTitulo')
-          .setLabel('Digite o título')
-          .setStyle(TextInputStyle.Short);
+          .setCustomId('input')
+          .setLabel(label)
+          .setStyle(style);
 
-        const row = new ActionRowBuilder().addComponents(input);
-        modal.addComponents(row);
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        return modal;
+      };
 
-        return interaction.showModal(modal);
-      }
+      if (interaction.customId === 'titulo')
+        return interaction.showModal(criarModal('tituloModal', 'Título'));
 
-      // DESCRIÇÃO
-      if (interaction.customId === 'descricao') {
-        const modal = new ModalBuilder()
-          .setCustomId('modalDesc')
-          .setTitle('Editar Descrição');
+      if (interaction.customId === 'descricao')
+        return interaction.showModal(criarModal('descModal', 'Descrição', TextInputStyle.Paragraph));
 
-        const input = new TextInputBuilder()
-          .setCustomId('inputDesc')
-          .setLabel('Digite a descrição')
-          .setStyle(TextInputStyle.Paragraph);
+      if (interaction.customId === 'cor')
+        return interaction.showModal(criarModal('corModal', 'Cor HEX (#000000)'));
 
-        const row = new ActionRowBuilder().addComponents(input);
-        modal.addComponents(row);
+      if (interaction.customId === 'thumbnail')
+        return interaction.showModal(criarModal('thumbModal', 'URL da Thumbnail'));
 
-        return interaction.showModal(modal);
-      }
+      if (interaction.customId === 'imagem')
+        return interaction.showModal(criarModal('imgModal', 'URL da Imagem'));
 
-      // COR
-      if (interaction.customId === 'cor') {
-        const modal = new ModalBuilder()
-          .setCustomId('modalCor')
-          .setTitle('Editar Cor');
+      if (interaction.customId === 'rodape')
+        return interaction.showModal(criarModal('rodapeModal', 'Rodapé'));
 
-        const input = new TextInputBuilder()
-          .setCustomId('inputCor')
-          .setLabel('Ex: #ff0000')
-          .setStyle(TextInputStyle.Short);
+      if (interaction.customId === 'autor')
+        return interaction.showModal(criarModal('autorModal', 'Autor'));
 
-        const row = new ActionRowBuilder().addComponents(input);
-        modal.addComponents(row);
-
-        return interaction.showModal(modal);
-      }
-
-      // RESET
       if (interaction.customId === 'resetar') {
-
-        embedsTemp[interaction.user.id] = {
-          title: 'Título',
-          description: 'Descrição',
-          color: '#2b2d31'
-        };
-
-        const embed = new EmbedBuilder()
-          .setTitle('Título')
-          .setDescription('Descrição')
-          .setColor('#2b2d31');
-
-        return interaction.update({ embeds: [embed] });
+        embedsTemp[interaction.user.id] = {};
       }
 
-      // ENVIAR
       if (interaction.customId === 'enviar') {
-
         const data = embedsTemp[interaction.user.id];
 
         const embed = new EmbedBuilder()
-          .setTitle(data.title)
-          .setDescription(data.description)
-          .setColor(data.color);
+          .setTitle(data.title || null)
+          .setDescription(data.description || null)
+          .setColor(data.color || '#2b2d31')
+          .setThumbnail(data.thumbnail || null)
+          .setImage(data.image || null)
+          .setFooter(data.footer ? { text: data.footer } : null)
+          .setAuthor(data.author ? { name: data.author } : null);
 
         await interaction.channel.send({ embeds: [embed] });
 
         return interaction.reply({ content: 'Embed enviado.', ephemeral: true });
       }
+
+      const data = embedsTemp[interaction.user.id];
+
+      const embed = new EmbedBuilder()
+        .setTitle(data.title || 'Título')
+        .setDescription(data.description || 'Descrição')
+        .setColor(data.color || '#2b2d31')
+        .setThumbnail(data.thumbnail || null)
+        .setImage(data.image || null)
+        .setFooter(data.footer ? { text: data.footer } : null)
+        .setAuthor(data.author ? { name: data.author } : null);
+
+      return interaction.update({ embeds: [embed] });
     }
 
     // ===== MODAIS =====
     if (interaction.isModalSubmit()) {
 
-      if (!embedsTemp[interaction.user.id]) return;
+      if (!embedsTemp[interaction.user.id]) embedsTemp[interaction.user.id] = {};
+
+      const value = interaction.fields.getTextInputValue('input');
+
+      const map = {
+        tituloModal: 'title',
+        descModal: 'description',
+        corModal: 'color',
+        thumbModal: 'thumbnail',
+        imgModal: 'image',
+        rodapeModal: 'footer',
+        autorModal: 'author'
+      };
+
+      embedsTemp[interaction.user.id][map[interaction.customId]] = value;
 
       const data = embedsTemp[interaction.user.id];
 
-      if (interaction.customId === 'modalTitulo') {
-        data.title = interaction.fields.getTextInputValue('inputTitulo');
-      }
-
-      if (interaction.customId === 'modalDesc') {
-        data.description = interaction.fields.getTextInputValue('inputDesc');
-      }
-
-      if (interaction.customId === 'modalCor') {
-        data.color = interaction.fields.getTextInputValue('inputCor');
-      }
-
       const embed = new EmbedBuilder()
-        .setTitle(data.title)
-        .setDescription(data.description)
-        .setColor(data.color);
+        .setTitle(data.title || 'Título')
+        .setDescription(data.description || 'Descrição')
+        .setColor(data.color || '#2b2d31')
+        .setThumbnail(data.thumbnail || null)
+        .setImage(data.image || null)
+        .setFooter(data.footer ? { text: data.footer } : null)
+        .setAuthor(data.author ? { name: data.author } : null);
 
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
@@ -287,11 +279,7 @@ client.on('interactionCreate', async (interaction) => {
     // ===== EMBED =====
     if (interaction.commandName === 'embed') {
 
-      embedsTemp[interaction.user.id] = {
-        title: 'Título',
-        description: 'Descrição',
-        color: '#2b2d31'
-      };
+      embedsTemp[interaction.user.id] = {};
 
       const embed = new EmbedBuilder()
         .setTitle('Título')
@@ -304,6 +292,16 @@ client.on('interactionCreate', async (interaction) => {
           { type: 2, style: 1, label: 'Título', custom_id: 'titulo' },
           { type: 2, style: 1, label: 'Descrição', custom_id: 'descricao' },
           { type: 2, style: 2, label: 'Cor', custom_id: 'cor' },
+          { type: 2, style: 2, label: 'Thumbnail', custom_id: 'thumbnail' },
+          { type: 2, style: 2, label: 'Imagem', custom_id: 'imagem' }
+        ]
+      };
+
+      const row2 = {
+        type: 1,
+        components: [
+          { type: 2, style: 2, label: 'Autor', custom_id: 'autor' },
+          { type: 2, style: 2, label: 'Rodapé', custom_id: 'rodape' },
           { type: 2, style: 4, label: 'Resetar', custom_id: 'resetar' },
           { type: 2, style: 3, label: 'Enviar', custom_id: 'enviar' }
         ]
@@ -311,35 +309,9 @@ client.on('interactionCreate', async (interaction) => {
 
       return interaction.reply({
         embeds: [embed],
-        components: [row],
+        components: [row, row2],
         ephemeral: true
       });
-    }
-
-    // ===== AVALIAR =====
-    if (interaction.commandName === 'avaliar') {
-
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return interaction.reply({ content: 'Só administradores podem usar.', ephemeral: true });
-      }
-
-      const texto = interaction.options.getString('texto');
-
-      await interaction.deferReply({ ephemeral: true });
-
-      db.total++;
-      db.pedidos++;
-      salvar();
-
-      const embed = new EmbedBuilder()
-        .setColor('#2b2d31')
-        .setTitle('Avaliação Recebida')
-        .setDescription(`Avaliação: ${texto}\nTotal: ${db.total}`);
-
-      const canal = client.channels.cache.get(CANAL_AVALIACOES);
-      if (canal) canal.send({ embeds: [embed] });
-
-      return interaction.editReply('Enviado.');
     }
 
   } catch (err) {
