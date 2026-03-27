@@ -6,6 +6,26 @@ process.on('unhandledRejection', (err) => {
   console.error('Promise rejeitada:', err);
 });
 
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
+} = require('discord.js');
+
+const embedSessions = {};
+
+function gerarEmbedCustom(data) {
+  return new EmbedBuilder()
+    .setTitle(data.title || null)
+    .setDescription(data.description || "Abra um painel interativo de criação de embeds")
+    .setColor('#2b2d31')
+    .setImage(data.image || null)
+    .setAuthor(data.author ? { name: data.author } : null);
+}
+
 const { 
   Client, 
   GatewayIntentBits, 
@@ -177,6 +197,33 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
+    // ===== EMBED PROFISSIONAL (ADMIN) =====
+if (interaction.commandName === 'embed') {
+
+  if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+    return interaction.reply({ content: 'Apenas admins.', ephemeral: true });
+  }
+
+  embedSessions[interaction.user.id] = { lista: [{}], atual: 0 };
+
+  return interaction.reply({
+    embeds: [gerarEmbedCustom({})],
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
+      ),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('novo').setLabel('Novo Embed').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
+      )
+    ],
+    ephemeral: true
+  });
+}
+    
     // ===== EMBED (SÓ ADM) =====
     if (interaction.isChatInputCommand() && interaction.commandName === 'embed') {
 
@@ -198,58 +245,66 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ===== BOTÕES EMBED =====
-    if (interaction.isButton()) {
+  // ===== BOTÕES =====
+if (interaction.isButton()) {
 
-      if (!isAdmin) return interaction.reply({ content: 'Apenas administradores.', ephemeral: true });
+  const session = embedSessions[interaction.user.id];
+  if (!session) return;
 
-      if (interaction.customId === 'editar') {
+  const atual = session.lista[session.atual];
 
-        const modal = new ModalBuilder()
-          .setCustomId('modalEmbed')
-          .setTitle('Editar Embed');
+  if (interaction.customId === 'novo') {
+    session.lista.push({});
+    session.atual = session.lista.length - 1;
+    return interaction.update({ embeds: [gerarEmbedCustom(atual)] });
+  }
 
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('titulo')
-              .setLabel('Título')
-              .setStyle(TextInputStyle.Short)
-              .setRequired(false)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('desc')
-              .setLabel('Descrição')
-              .setStyle(TextInputStyle.Paragraph)
-              .setRequired(false)
+  if (interaction.customId === 'enviar') {
+    await interaction.deferUpdate();
+    await interaction.channel.send({
+      embeds: session.lista.map(e => gerarEmbedCustom(e))
+    });
+    return;
+  }
+
+  const modal = new ModalBuilder()
+    .setCustomId(interaction.customId)
+    .setTitle('Editar Embed')
+    .addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('input')
+          .setLabel('Digite')
+          .setStyle(
+            interaction.customId === 'desc'
+              ? TextInputStyle.Paragraph
+              : TextInputStyle.Short
           )
-        );
+      )
+    );
 
-        return interaction.showModal(modal);
-      }
+  return interaction.showModal(modal);
+}
 
-      if (interaction.customId === 'enviar') {
-        const data = embedSessions[interaction.user.id] || {};
-        return interaction.channel.send({ embeds: [gerarEmbed(data)] });
-      }
-    }
+// ===== MODAL =====
+if (interaction.isModalSubmit()) {
 
-    // ===== MODAL EMBED =====
-    if (interaction.isModalSubmit()) {
+  const session = embedSessions[interaction.user.id];
+  if (!session) return;
 
-      const data = {
-        title: interaction.fields.getTextInputValue('titulo'),
-        description: interaction.fields.getTextInputValue('desc')
-      };
+  const atual = session.lista[session.atual];
+  const valor = interaction.fields.getTextInputValue('input');
 
-      embedSessions[interaction.user.id] = data;
+  if (interaction.customId === 'titulo') atual.title = valor;
+  if (interaction.customId === 'desc') atual.description = valor;
+  if (interaction.customId === 'imagem') atual.image = valor;
+  if (interaction.customId === 'autor') atual.author = valor;
 
-      return interaction.reply({
-        embeds: [gerarEmbed(data)],
-        ephemeral: true
-      });
-    }
+  return interaction.reply({
+    embeds: [gerarEmbedCustom(atual)],
+    ephemeral: true
+  });
+}
 
     // ===== AVALIAR =====
     if (interaction.isChatInputCommand() && interaction.commandName === 'avaliar') {
