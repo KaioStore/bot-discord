@@ -131,6 +131,42 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply('Avaliação enviada.');
       }
 
+      // ===== NOVOS COMANDOS =====
+
+      if (interaction.commandName === 'gastar') {
+        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+
+        const user = interaction.options.getUser('usuario');
+        const valor = interaction.options.getNumber('valor');
+
+        gastos[user.id] = (gastos[user.id] || 0) + valor;
+        fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
+
+        return interaction.reply({ content: `💰 Adicionado R$${valor} para ${user.username}`, ephemeral: true });
+      }
+
+      if (interaction.commandName === 'removergasto') {
+        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+
+        const user = interaction.options.getUser('usuario');
+        const valor = interaction.options.getNumber('valor');
+
+        gastos[user.id] = Math.max((gastos[user.id] || 0) - valor, 0);
+        fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
+
+        return interaction.reply({ content: `💸 Removido R$${valor} de ${user.username}`, ephemeral: true });
+      }
+
+      if (interaction.commandName === 'rank') {
+        const ranking = Object.entries(gastos)
+          .sort(([,a],[,b]) => b - a)
+          .slice(0, 10)
+          .map(([id, total], i) => `${i+1}. <@${id}> — R$${total}`)
+          .join('\n') || 'Sem registros ainda';
+
+        return interaction.reply({ content: `🏆 Ranking de gastos:\n${ranking}`, ephemeral: true });
+      }
+
     } // FECHA COMANDOS
 
     // ===== EMBED SYSTEM =====
