@@ -8,16 +8,25 @@ const {
   StringSelectMenuBuilder
 } = require('discord.js');
 
+const fs = require('fs');
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
+app.use(cors());
+
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-const embedSessions = {};
-let gastos = {};
+// ===== BANCO =====
 let db = { total: 419, pedidos: 450 };
+let gastos = {};
+
+const embedSessions = {};
 
 // ===== EMBED =====
 function gerarEmbed(data) {
@@ -33,6 +42,9 @@ function gerarEmbed(data) {
         : null
     );
 }
+
+// ===== API (mantido) =====
+app.listen(3000, () => console.log('Web server ligado'));
 
 // ===== READY =====
 client.on('ready', () => {
@@ -87,10 +99,15 @@ client.on('interactionCreate', async (interaction) => {
 
       embedSessions[interaction.user.id] = {
         lista: [{}],
-        atual: 0
+        atual: 0,
+        modo: 'menu'
       };
 
-      return criarPainel(interaction);
+      return interaction.reply({
+        embeds: [gerarEmbed({})],
+        components: painel(embedSessions[interaction.user.id]),
+        ephemeral: true
+      });
     }
 
     // ===== SELECT =====
@@ -99,6 +116,8 @@ client.on('interactionCreate', async (interaction) => {
       if (!s) return;
 
       s.atual = Number(interaction.values[0]);
+      s.modo = 'edit';
+
       return atualizarPainel(interaction);
     }
 
@@ -113,6 +132,19 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.customId === 'add') {
         s.lista.push({});
         s.atual = s.lista.length - 1;
+        return atualizarPainel(interaction);
+      }
+
+      if (interaction.customId === 'voltar') {
+        s.modo = 'menu';
+        return atualizarPainel(interaction);
+      }
+
+      if (interaction.customId === 'deletar') {
+        s.lista.splice(s.atual, 1);
+        if (s.lista.length === 0) s.lista.push({});
+        s.atual = 0;
+        s.modo = 'menu';
         return atualizarPainel(interaction);
       }
 
@@ -206,46 +238,61 @@ client.on('interactionCreate', async (interaction) => {
 
 });
 
-// ===== PAINEL =====
+// ===== UI =====
 function painel(s) {
 
-  const select = new StringSelectMenuBuilder()
-    .setCustomId('select')
-    .setPlaceholder('Selecionar embed')
-    .addOptions(
-      s.lista.map((_,i)=>({
-        label:`Embed ${i+1}`,
-        value:`${i}`
-      }))
-    );
+  if (s.modo === 'menu') {
+    const select = new StringSelectMenuBuilder()
+      .setCustomId('select')
+      .setPlaceholder('Selecionar embed')
+      .addOptions(
+        s.lista.map((_,i)=>({
+          label:`Embed ${i+1}`,
+          value:`${i}`
+        }))
+      );
 
-  return [
-    new ActionRowBuilder().addComponents(select),
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(2),
-      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(2),
-      new ButtonBuilder().setCustomId('img').setLabel('Imagem').setStyle(2),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumbnail').setStyle(2)
-    ),
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(2),
-      new ButtonBuilder().setCustomId('add').setLabel('Adicionar').setStyle(2),
-      new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(3)
-    )
-  ];
+    return [
+      new ActionRowBuilder().addComponents(select),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('add').setLabel('Adicionar Embed').setStyle(2),
+        new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(3)
+      )
+    ];
+  }
+
+  if (s.modo === 'edit') {
+    return [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(2),
+        new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(2)
+      ),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('img').setLabel('Imagem').setStyle(2),
+        new ButtonBuilder().setCustomId('thumb').setLabel('Thumbnail').setStyle(2)
+      ),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(2)
+      ),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(1),
+        new ButtonBuilder().setCustomId('deletar').setLabel('Deletar').setStyle(4)
+      )
+    ];
+  }
 }
 
-function criarPainel(interaction) {
-  const s = embedSessions[interaction.user.id];
-  return interaction.reply({
-    embeds: [gerarEmbed(s.lista[0])],
-    components: painel(s),
-    ephemeral: true
-  });
-}
-
+// ===== UPDATE =====
 function atualizarPainel(interaction) {
   const s = embedSessions[interaction.user.id];
+
+  if (s.modo === 'menu') {
+    return interaction.update({
+      embeds: s.lista.map(e => gerarEmbed(e)),
+      components: painel(s)
+    });
+  }
+
   return interaction.update({
     embeds: [gerarEmbed(s.lista[s.atual])],
     components: painel(s)
@@ -253,3 +300,4 @@ function atualizarPainel(interaction) {
 }
 
 client.login(TOKEN);
+setInterval(() => {}, 1000);
