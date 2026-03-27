@@ -70,13 +70,20 @@ function salvarGastos() {
 const embedSessions = {};
 const embedMessages = {};
 
-function gerarEmbed(data) {
+function gerarEmbedCustom(data) {
   return new EmbedBuilder()
     .setTitle(data.title || null)
     .setDescription(data.description || "Abra um painel interativo de criação de embeds")
     .setColor('#2b2d31')
     .setImage(data.image || null)
-    .setAuthor(data.author ? { name: data.author } : null);
+    .setAuthor(
+      data.author 
+        ? { 
+            name: data.author, 
+            iconURL: data.authorIcon || null 
+          } 
+        : null
+    );
 }
 
 // ===== API =====
@@ -263,8 +270,34 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.customId === 'titulo') atual.title = valor;
       if (interaction.customId === 'desc') atual.description = valor;
       if (interaction.customId === 'imagem') atual.image = valor;
-      if (interaction.customId === 'autor') atual.author = valor;
+if (interaction.customId === 'autor_modal') {
+  const nome = interaction.fields.getTextInputValue('nome');
+  const icon = interaction.fields.getTextInputValue('icon');
 
+  atual.author = nome;
+  atual.authorIcon = icon;
+}
+  const modal = new ModalBuilder()
+    .setCustomId('autor_modal')
+    .setTitle('Autor')
+    .addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('nome')
+          .setLabel('Nome do autor')
+          .setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('icon')
+          .setLabel('URL da imagem (avatar)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false)
+      )
+    );
+
+  return interaction.showModal(modal);
+}
       return interaction.reply({
         embeds: [gerarEmbed(atual)],
         ephemeral: true
