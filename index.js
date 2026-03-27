@@ -6,15 +6,18 @@ process.on('unhandledRejection', (err) => {
   console.error('Promise rejeitada:', err);
 });
 
-const { 
-  Client, 
-  GatewayIntentBits, 
-  EmbedBuilder, 
+const {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
   PermissionsBitField,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  ActionRowBuilder
+  StringSelectMenuBuilder
 } = require('discord.js');
 
 const fs = require('fs');
@@ -32,8 +35,9 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ===== SISTEMA EMBED =====
-let embedsTemp = {};
+// ===== SISTEMA EMBED (ADICIONADO) =====
+const embedSessions = {};
+const embedMessages = {};
 
 // ===== BANCO AVALIAÇÕES =====
 let db = { total: 419, pedidos: 450 };
@@ -72,9 +76,7 @@ app.get('/perfil/:id', async (req, res) => {
   const id = req.params.id;
 
   if (!client.isReady()) {
-    return setTimeout(() => {
-      res.redirect(`/perfil/${req.params.id}`);
-    }, 2000);
+    return setTimeout(() => res.redirect(`/perfil/${id}`), 2000);
   }
 
   try {
@@ -103,6 +105,7 @@ app.get('/perfil/:id', async (req, res) => {
   }
 });
 
+// ===== RANKING =====
 app.get('/ranking', async (req, res) => {
   try {
     const ranking = Object.entries(gastos).sort((a, b) => b[1] - a[1]);
@@ -120,11 +123,7 @@ app.get('/ranking', async (req, res) => {
         nome = user.username;
       } catch {}
 
-      lista.push({
-        id: userId,
-        nome,
-        total
-      });
+      lista.push({ id: userId, nome, total });
     }
 
     res.json(lista);
@@ -143,124 +142,26 @@ client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
 });
 
-// ===== INTERAÇÕES =====
+// ===== GERAR EMBED =====
+function gerarEmbed(data) {
+  return new EmbedBuilder()
+    .setTitle(data.title || 'Título')
+    .setDescription(data.description || 'Descrição')
+    .setColor(data.color || '#2b2d31')
+    .setThumbnail(data.thumbnail || null)
+    .setImage(data.image || null)
+    .setFooter(data.footer ? { text: data.footer } : null)
+    .setAuthor(data.author ? { name: data.author } : null);
+}
+
+// ===== COMANDOS =====
 client.on('interactionCreate', async (interaction) => {
 
-  try {
-
-    // ===== BOTÕES =====
-    if (interaction.isButton()) {
-
-      if (!embedsTemp[interaction.user.id]) return;
-
-      const criarModal = (id, label, style = TextInputStyle.Short) => {
-        const modal = new ModalBuilder()
-          .setCustomId(id)
-          .setTitle(label);
-
-        const input = new TextInputBuilder()
-          .setCustomId('input')
-          .setLabel(label)
-          .setStyle(style);
-
-        modal.addComponents(new ActionRowBuilder().addComponents(input));
-        return modal;
-      };
-
-      if (interaction.customId === 'titulo')
-        return interaction.showModal(criarModal('tituloModal', 'Título'));
-
-      if (interaction.customId === 'descricao')
-        return interaction.showModal(criarModal('descModal', 'Descrição', TextInputStyle.Paragraph));
-
-      if (interaction.customId === 'cor')
-        return interaction.showModal(criarModal('corModal', 'Cor HEX (#000000)'));
-
-      if (interaction.customId === 'thumbnail')
-        return interaction.showModal(criarModal('thumbModal', 'URL da Thumbnail'));
-
-      if (interaction.customId === 'imagem')
-        return interaction.showModal(criarModal('imgModal', 'URL da Imagem'));
-
-      if (interaction.customId === 'rodape')
-        return interaction.showModal(criarModal('rodapeModal', 'Rodapé'));
-
-      if (interaction.customId === 'autor')
-        return interaction.showModal(criarModal('autorModal', 'Autor'));
-
-      if (interaction.customId === 'resetar') {
-        embedsTemp[interaction.user.id] = {};
-      }
-
-      if (interaction.customId === 'enviar') {
-        const data = embedsTemp[interaction.user.id];
-
-        const embed = new EmbedBuilder()
-          .setTitle(data.title || null)
-          .setDescription(data.description || null)
-          .setColor(data.color || '#2b2d31')
-          .setThumbnail(data.thumbnail || null)
-          .setImage(data.image || null)
-          .setFooter(data.footer ? { text: data.footer } : null)
-          .setAuthor(data.author ? { name: data.author } : null);
-
-        await interaction.channel.send({ embeds: [embed] });
-
-        return interaction.reply({ content: 'Embed enviado.', ephemeral: true });
-      }
-
-      const data = embedsTemp[interaction.user.id];
-
-      const embed = new EmbedBuilder()
-        .setTitle(data.title || 'Título')
-        .setDescription(data.description || 'Descrição')
-        .setColor(data.color || '#2b2d31')
-        .setThumbnail(data.thumbnail || null)
-        .setImage(data.image || null)
-        .setFooter(data.footer ? { text: data.footer } : null)
-        .setAuthor(data.author ? { name: data.author } : null);
-
-      return interaction.update({ embeds: [embed] });
-    }
-
-    // ===== MODAIS =====
-    if (interaction.isModalSubmit()) {
-
-      if (!embedsTemp[interaction.user.id]) embedsTemp[interaction.user.id] = {};
-
-      const value = interaction.fields.getTextInputValue('input');
-
-      const map = {
-        tituloModal: 'title',
-        descModal: 'description',
-        corModal: 'color',
-        thumbModal: 'thumbnail',
-        imgModal: 'image',
-        rodapeModal: 'footer',
-        autorModal: 'author'
-      };
-
-      embedsTemp[interaction.user.id][map[interaction.customId]] = value;
-
-      const data = embedsTemp[interaction.user.id];
-
-      const embed = new EmbedBuilder()
-        .setTitle(data.title || 'Título')
-        .setDescription(data.description || 'Descrição')
-        .setColor(data.color || '#2b2d31')
-        .setThumbnail(data.thumbnail || null)
-        .setImage(data.image || null)
-        .setFooter(data.footer ? { text: data.footer } : null)
-        .setAuthor(data.author ? { name: data.author } : null);
-
-      return interaction.reply({ embeds: [embed], ephemeral: true });
-    }
-
-    if (!interaction.isChatInputCommand()) return;
+  // ===== SLASH =====
+  if (interaction.isChatInputCommand()) {
 
     // ===== SALDO =====
     if (interaction.commandName === 'saldo') {
-
       const user = interaction.options.getUser('usuario') || interaction.user;
       const total = gastos[user.id] || 0;
 
@@ -276,46 +177,197 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ===== EMBED =====
+    // ===== EMBED COMPLETO =====
     if (interaction.commandName === 'embed') {
 
-      embedsTemp[interaction.user.id] = {};
-
-      const embed = new EmbedBuilder()
-        .setTitle('Título')
-        .setDescription('Descrição')
-        .setColor('#2b2d31');
-
-      const row = {
-        type: 1,
-        components: [
-          { type: 2, style: 1, label: 'Título', custom_id: 'titulo' },
-          { type: 2, style: 1, label: 'Descrição', custom_id: 'descricao' },
-          { type: 2, style: 2, label: 'Cor', custom_id: 'cor' },
-          { type: 2, style: 2, label: 'Thumbnail', custom_id: 'thumbnail' },
-          { type: 2, style: 2, label: 'Imagem', custom_id: 'imagem' }
-        ]
+      embedSessions[interaction.user.id] = {
+        atual: 0,
+        lista: [{}]
       };
 
-      const row2 = {
-        type: 1,
-        components: [
-          { type: 2, style: 2, label: 'Autor', custom_id: 'autor' },
-          { type: 2, style: 2, label: 'Rodapé', custom_id: 'rodape' },
-          { type: 2, style: 4, label: 'Resetar', custom_id: 'resetar' },
-          { type: 2, style: 3, label: 'Enviar', custom_id: 'enviar' }
-        ]
-      };
+      const select = new StringSelectMenuBuilder()
+        .setCustomId('select_embed')
+        .setPlaceholder('Selecionar embed')
+        .addOptions([{ label: 'Embed 1', value: '0' }]);
+
+      const row1 = new ActionRowBuilder().addComponents(select);
+
+      const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('add_embed').setLabel('+ Embed').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('edit_title').setLabel('Título').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('edit_desc').setLabel('Descrição').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('edit_color').setLabel('Cor').setStyle(ButtonStyle.Secondary)
+      );
+
+      const row3 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('edit_image').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('edit_thumb').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('edit_footer').setLabel('Rodapé').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('edit_author').setLabel('Autor').setStyle(ButtonStyle.Secondary)
+      );
+
+      const row4 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('send_embed').setLabel('Enviar').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('edit_message').setLabel('Editar Msg').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('reset_embed').setLabel('Resetar').setStyle(ButtonStyle.Danger)
+      );
 
       return interaction.reply({
-        embeds: [embed],
-        components: [row, row2],
+        embeds: [gerarEmbed(embedSessions[interaction.user.id].lista[0])],
+        components: [row1, row2, row3, row4],
         ephemeral: true
       });
     }
 
-  } catch (err) {
-    console.error(err);
+    // ===== AVALIAR =====
+    if (interaction.commandName === 'avaliar') {
+
+      if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        return interaction.reply({ content: 'Só administradores podem usar.', ephemeral: true });
+      }
+
+      const texto = interaction.options.getString('texto');
+
+      await interaction.deferReply({ ephemeral: true });
+
+      db.total++;
+      db.pedidos++;
+      salvar();
+
+      const embed = new EmbedBuilder()
+        .setColor('#2b2d31')
+        .setTitle('**Avaliação Recebida! 🖤**')
+        .setDescription(`**•** ${texto}`);
+
+      const canal = client.channels.cache.get(CANAL_AVALIACOES);
+      if (canal) canal.send({ embeds: [embed] });
+
+      return interaction.editReply('Avaliação enviada.');
+    }
+
+    // ===== GASTAR =====
+    if (interaction.commandName === 'gastar') {
+      const user = interaction.options.getUser('usuario');
+      const valor = interaction.options.getNumber('valor');
+
+      if (!gastos[user.id]) gastos[user.id] = 0;
+      gastos[user.id] += valor;
+
+      salvarGastos();
+
+      return interaction.reply({ content: `Gasto adicionado para ${user.username}`, ephemeral: true });
+    }
+
+    // ===== REMOVER =====
+    if (interaction.commandName === 'removergasto') {
+      const user = interaction.options.getUser('usuario');
+      const valor = interaction.options.getNumber('valor');
+
+      if (!gastos[user.id]) gastos[user.id] = 0;
+      gastos[user.id] -= valor;
+
+      if (gastos[user.id] <= 0) delete gastos[user.id];
+
+      salvarGastos();
+
+      return interaction.reply({ content: `Gasto removido`, ephemeral: true });
+    }
+  }
+
+  // ===== SELECT =====
+  if (interaction.isStringSelectMenu()) {
+    const session = embedSessions[interaction.user.id];
+    if (!session) return;
+
+    session.atual = parseInt(interaction.values[0]);
+
+    return interaction.update({
+      embeds: [gerarEmbed(session.lista[session.atual])]
+    });
+  }
+
+  // ===== BOTÕES =====
+  if (interaction.isButton()) {
+
+    const session = embedSessions[interaction.user.id];
+    if (!session) return;
+
+    const atual = session.lista[session.atual];
+
+    const criarModal = (id, label) => {
+      const modal = new ModalBuilder().setCustomId(id).setTitle(label);
+
+      const input = new TextInputBuilder()
+        .setCustomId('input')
+        .setLabel(label)
+        .setStyle(TextInputStyle.Short);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      return modal;
+    };
+
+    if (interaction.customId === 'add_embed') {
+      session.lista.push({});
+    }
+
+    if (interaction.customId === 'edit_title') return interaction.showModal(criarModal('title', 'Título'));
+    if (interaction.customId === 'edit_desc') return interaction.showModal(criarModal('desc', 'Descrição'));
+    if (interaction.customId === 'edit_color') return interaction.showModal(criarModal('color', 'Cor HEX'));
+    if (interaction.customId === 'edit_image') return interaction.showModal(criarModal('image', 'URL Imagem'));
+    if (interaction.customId === 'edit_thumb') return interaction.showModal(criarModal('thumb', 'Thumbnail'));
+    if (interaction.customId === 'edit_footer') return interaction.showModal(criarModal('footer', 'Rodapé'));
+    if (interaction.customId === 'edit_author') return interaction.showModal(criarModal('author', 'Autor'));
+
+    if (interaction.customId === 'send_embed') {
+      const msg = await interaction.channel.send({
+        embeds: session.lista.map(e => gerarEmbed(e))
+      });
+      embedMessages[interaction.user.id] = msg;
+    }
+
+    if (interaction.customId === 'edit_message') {
+      const msg = embedMessages[interaction.user.id];
+      if (msg) {
+        await msg.edit({
+          embeds: session.lista.map(e => gerarEmbed(e))
+        });
+      }
+    }
+
+    if (interaction.customId === 'reset_embed') {
+      session.lista = [{}];
+      session.atual = 0;
+    }
+
+    return interaction.update({
+      embeds: [gerarEmbed(atual)]
+    });
+  }
+
+  // ===== MODAL =====
+  if (interaction.isModalSubmit()) {
+
+    const session = embedSessions[interaction.user.id];
+    if (!session) return;
+
+    const atual = session.lista[session.atual];
+    const value = interaction.fields.getTextInputValue('input');
+
+    const map = {
+      title: 'title',
+      desc: 'description',
+      color: 'color',
+      image: 'image',
+      thumb: 'thumbnail',
+      footer: 'footer',
+      author: 'author'
+    };
+
+    atual[map[interaction.customId]] = value;
+
+    return interaction.update({
+      embeds: [gerarEmbed(atual)]
+    });
   }
 
 });
