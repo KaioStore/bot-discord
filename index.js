@@ -199,6 +199,11 @@ client.on('interactionCreate', async (interaction) => {
 
   try {
 
+    // 🔥 GARANTE RESPOSTA
+    if (interaction.isChatInputCommand()) {
+      await interaction.deferReply({ ephemeral: true });
+    }
+
     // ===== SLASH =====
     if (interaction.isChatInputCommand()) {
 
@@ -212,9 +217,8 @@ client.on('interactionCreate', async (interaction) => {
         else if (total >= 300) vip = "Prata";
         else if (total >= 100) vip = "Bronze";
 
-        return interaction.reply({
-          content: `💰 ${user.username} gastou: R$${total}\n🏆 VIP: ${vip}`,
-          ephemeral: true
+        return interaction.editReply({
+          content: `💰 ${user.username} gastou: R$${total}\n🏆 VIP: ${vip}`
         });
       }
 
@@ -224,21 +228,18 @@ client.on('interactionCreate', async (interaction) => {
           lista: [{}]
         };
 
-        return interaction.reply({
+        return interaction.editReply({
           embeds: [gerarEmbed({})],
-          components: painel(),
-          ephemeral: true
+          components: painel()
         });
       }
 
       if (interaction.commandName === 'avaliar') {
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-          return interaction.reply({ content: 'Só administradores podem usar.', ephemeral: true });
+          return interaction.editReply({ content: 'Só administradores podem usar.' });
         }
 
         const texto = interaction.options.getString('texto');
-
-        await interaction.deferReply({ ephemeral: true });
 
         db.total++;
         db.pedidos++;
@@ -264,7 +265,7 @@ client.on('interactionCreate', async (interaction) => {
 
         salvarGastos();
 
-        return interaction.reply({ content: `Gasto adicionado para ${user.username}`, ephemeral: true });
+        return interaction.editReply({ content: `Gasto adicionado para ${user.username}` });
       }
 
       if (interaction.commandName === 'removergasto') {
@@ -278,7 +279,7 @@ client.on('interactionCreate', async (interaction) => {
 
         salvarGastos();
 
-        return interaction.reply({ content: `Gasto removido`, ephemeral: true });
+        return interaction.editReply({ content: `Gasto removido` });
       }
     }
 
@@ -286,7 +287,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton()) {
 
       const session = embedSessions[interaction.user.id];
-      if (!session) return;
+      if (!session) return interaction.reply({ content: 'Sessão expirada.', ephemeral: true });
 
       const atual = session.lista[session.atual];
 
@@ -357,7 +358,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isModalSubmit()) {
 
       const session = embedSessions[interaction.user.id];
-      if (!session) return;
+      if (!session) return interaction.reply({ content: 'Sessão expirada.', ephemeral: true });
 
       const atual = session.lista[session.atual];
 
@@ -366,7 +367,6 @@ client.on('interactionCreate', async (interaction) => {
         const url = interaction.fields.getTextInputValue('url');
 
         if (!atual.buttons) atual.buttons = [];
-
         atual.buttons.push({ label, url });
 
         return interaction.update({
@@ -397,6 +397,12 @@ client.on('interactionCreate', async (interaction) => {
 
   } catch (err) {
     console.error(err);
+
+    if (interaction.deferred) {
+      interaction.editReply({ content: 'Erro ao executar.' }).catch(() => {});
+    } else {
+      interaction.reply({ content: 'Erro ao executar.', ephemeral: true }).catch(() => {});
+    }
   }
 
 });
