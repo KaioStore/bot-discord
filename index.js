@@ -196,6 +196,19 @@ client.on('interactionCreate', async (interaction) => {
 
       const id = interaction.customId;
 
+      // ===== CLIQUE NOS BOTÕES CRIADOS =====
+      if (id.startsWith('msg_')) {
+        const index = parseInt(id.split('_')[1]);
+        const btn = session.buttons[index];
+
+        if (!btn) return;
+
+        return interaction.reply({
+          content: btn.valor,
+          ephemeral: true
+        });
+      }
+
       if (['titulo','desc','imagem','thumb','autor','autor_icon'].includes(id)) {
 
         const atual = session.embeds[session.atual] || {};
