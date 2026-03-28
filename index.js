@@ -184,8 +184,34 @@ client.on('interactionCreate', async (interaction) => {
     let atual = session.embeds[session.atual];
     if (!atual) return;
 
+    if (interaction.isStringSelectMenu()) {
+      session.atual = Number(interaction.values[0]);
+
+      return interaction.update({
+        embeds: [montarEmbed(session.embeds[session.atual])],
+        components: gerarMenu(interaction.user.id)
+      });
+    }
+
     if (interaction.isButton()) {
       const id = interaction.customId;
+
+      if (id.startsWith('msg_')) {
+        const index = Number(id.split('_')[1]);
+        const btn = session.buttons[index];
+        if (!btn) return;
+
+        await interaction.deferUpdate();
+
+        return interaction.followUp({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#2b2d31')
+              .setDescription(btn.valor)
+          ],
+          ephemeral: true
+        });
+      }
 
       if (['titulo','desc','imagem','thumb'].includes(id)) {
 
@@ -199,8 +225,8 @@ client.on('interactionCreate', async (interaction) => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel('Digite (opcional)')
-              .setRequired(false) // ✅ NÃO OBRIGATÓRIO
+              .setLabel('Digite (deixe vazio para manter)')
+              .setRequired(false) // 🔥 NÃO OBRIGATÓRIO
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
               .setValue(valorAtual)
           )
@@ -208,19 +234,73 @@ client.on('interactionCreate', async (interaction) => {
 
         return interaction.showModal(modal);
       }
+
+      if (id === 'add_button') {
+        const modal = new ModalBuilder()
+          .setCustomId('criar_botao')
+          .setTitle('Botão');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('label').setLabel('Nome').setRequired(false).setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem/Link').setRequired(false).setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor').setRequired(false).setStyle(TextInputStyle.Short)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      if (id === 'add_embed') {
+        session.embeds.push({});
+        session.atual = session.embeds.length - 1;
+      }
+
+      if (id === 'delete') {
+        session.embeds.splice(session.atual, 1);
+        if (session.embeds.length === 0) session.embeds.push({});
+        session.atual = 0;
+      }
+
+      if (id === 'edit') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
+      if (id === 'voltar') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
+      if (id === 'enviar') {
+
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e))
+        });
+
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
+      }
+
+      return interaction.update({
+        embeds: [montarEmbed(session.embeds[session.atual])],
+        components: gerarMenu(interaction.user.id)
+      });
     }
 
     if (interaction.isModalSubmit()) {
 
       if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
-        let valor = interaction.fields.getTextInputValue('input');
+        const valor = interaction.fields.getTextInputValue('input');
 
-        if (!valor) {
-          delete atual[interaction.customId]; // ✅ remove campo vazio
-        } else {
-          if (interaction.customId === 'imagem' || interaction.customId === 'thumb') {
-            valor = valor.split('?')[0]; // ✅ remove parâmetros bugados
-          }
+        if (valor !== '') { // 🔥 NÃO APAGA SE VAZIO
           atual[interaction.customId] = valor;
         }
 
@@ -229,6 +309,7 @@ client.on('interactionCreate', async (interaction) => {
           components: gerarEditor()
         });
       }
+
     }
 
   } catch (err) {
@@ -241,53 +322,12 @@ function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
 
   if (data.title) embed.setTitle(data.title);
-  if (data.description) embed.setDescription(data.description);
+  embed.setDescription(data.description || '⠀');
 
-  if (data.image) embed.setImage(data.image);
-  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
+  if (data.image && data.image.startsWith('http')) embed.setImage(data.image);
+  if (data.thumbnail && data.thumbnail.startsWith('http')) embed.setThumbnail(data.thumbnail);
 
   return embed;
 }
 
-function gerarMenu(userId) {
-  const session = embedSessions[userId];
-
-  return [
-    new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('select')
-        .setPlaceholder('Selecionar embed')
-        .addOptions(
-          session.embeds.map((e,i)=>({
-            label:`Embed ${i+1}`,
-            value:`${i}`
-          }))
-        )
-    )
-  ];
-}
-
-function gerarEditor() {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary)
-    )
-  ];
-}
-
-// ===== WEB =====
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-  res.send('Bot online');
-});
-
-app.listen(PORT, () => {
-  console.log('Servidor rodando');
-});
-
-// ===== LOGIN =====
-client.login(TOKEN);
+// ===== RESTO IGUAL =====
