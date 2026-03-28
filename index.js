@@ -36,12 +36,12 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ===== CORES DOS BOTÕES =====
+// ===== CORES DOS BOTÕES (ARRUMADO) =====
 const styleMap = {
-  Primary: ButtonStyle.Primary,
-  Success: ButtonStyle.Success,
-  Secondary: ButtonStyle.Secondary,
-  Danger: ButtonStyle.Danger
+  azul: ButtonStyle.Primary,
+  verde: ButtonStyle.Success,
+  cinza: ButtonStyle.Secondary,
+  vermelho: ButtonStyle.Danger
 };
 
 // ===== BANCO =====
@@ -163,9 +163,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.commandName === 'rank') {
-
-        const rankingArray = Object.entries(gastos)
-          .sort(([,a],[,b]) => b - a);
+        const rankingArray = Object.entries(gastos).sort(([,a],[,b]) => b - a);
 
         const embed = new EmbedBuilder()
           .setColor('#2b2d31')
@@ -173,9 +171,7 @@ client.on('interactionCreate', async (interaction) => {
           .setDescription(
             rankingArray.map(([id, total], i) => {
               const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-
-              return `${medal} [<@${id}>](${SITE}/user/${id})
-💰 Total: R$${total}`;
+              return `${medal} [<@${id}>](${SITE}/user/${id})\n💰 Total: R$${total}`;
             }).join('\n\n')
           );
 
@@ -189,6 +185,7 @@ client.on('interactionCreate', async (interaction) => {
     let atual = session.embeds[session.atual];
     if (!atual) return;
 
+    // SELECT
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -198,167 +195,161 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-   if (interaction.isButton()) {
+    // BOTÕES
+    if (interaction.isButton()) {
+      const id = interaction.customId;
 
-  const id = interaction.customId;
+      // ===== EDITAR CAMPOS (CORRIGIDO BUG) =====
+      if (['titulo','desc','imagem','thumb'].includes(id)) {
 
-  // RESPOSTA DOS BOTÕES
-  if (id.startsWith('msg_')) {
-    const index = Number(id.split('_')[1]);
-    const btn = session.buttons[index];
+        let valorAtual = '';
+        if (id === 'titulo') valorAtual = atual.title || '';
+        if (id === 'desc') valorAtual = atual.description || '';
+        if (id === 'imagem') valorAtual = atual.image || '';
+        if (id === 'thumb') valorAtual = atual.thumbnail || '';
 
-    if (!btn) return;
+        const modal = new ModalBuilder()
+          .setCustomId(id)
+          .setTitle('Editar');
 
-    return interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor('#2b2d31')
-          .setDescription(`${btn.valor}`)
-      ],
-      ephemeral: true
-    });
-  }
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('input')
+              .setLabel('Digite')
+              .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
+              .setValue(valorAtual)
+          )
+        );
 
-  // ===== EDITAR CAMPOS =====
-  if (id === 'autor') {
-
-  const atual = session.embeds[session.atual] || {};
-
-  const modal = new ModalBuilder()
-    .setCustomId('autor_full')
-    .setTitle('Editar Autor');
-
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder()
-        .setCustomId('nome')
-        .setLabel('Nome do autor')
-        .setStyle(TextInputStyle.Short)
-        .setValue(atual.author?.nome || '')
-    ),
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder()
-        .setCustomId('icon')
-        .setLabel('URL da imagem')
-        .setStyle(TextInputStyle.Short)
-        .setValue(atual.author?.icon || '')
-    ),
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder()
-        .setCustomId('url')
-        .setLabel('URL clicável')
-        .setStyle(TextInputStyle.Short)
-        .setValue(atual.author?.url || '')
-    )
-  );
-
-  return interaction.showModal(modal);
-}
-
-  // ===== ADICIONAR BOTÃO =====
-  if (id === 'add_button') {
-  const modal = new ModalBuilder()
-    .setCustomId('criar_botao')
-    .setTitle('Adicionar botão');
-
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
-    ),
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
-    ),
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza, vermelho)').setStyle(TextInputStyle.Short)
-    )
-  );
-
-  return interaction.showModal(modal);
-}
-
-  // ===== RESTAURA SUAS PÁGINAS =====
-  if (id === 'add_embed') {
-    session.embeds.push({});
-    session.atual = session.embeds.length - 1;
-  }
-
-  if (id === 'delete') {
-    session.embeds.splice(session.atual, 1);
-    if (session.embeds.length === 0) session.embeds.push({});
-    session.atual = 0;
-  }
-
-  if (id === 'edit') {
-    return interaction.update({
-      embeds: [montarEmbed(atual)],
-      components: gerarEditor()
-    });
-  }
-
-  if (id === 'voltar') {
-    return interaction.update({
-      embeds: [montarEmbed(atual)],
-      components: gerarMenu(interaction.user.id)
-    });
-  }
-
-  // ===== ENVIAR =====
-  if (id === 'enviar') {
-
-    const rows = [];
-    let row = new ActionRowBuilder();
-
-    session.buttons.forEach((btn, i) => {
-
-      if (i % 5 === 0 && i !== 0) {
-        rows.push(row);
-        row = new ActionRowBuilder();
+        return interaction.showModal(modal);
       }
 
-      if (btn.valor.startsWith('http')) {
-        row.addComponents(
-          new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor)
+      // ===== AUTOR COMPLETO =====
+      if (id === 'autor') {
+        const modal = new ModalBuilder()
+          .setCustomId('autor_full')
+          .setTitle('Editar Autor');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('nome').setLabel('Nome').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('icon').setLabel('Imagem URL').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('url').setLabel('URL clicável').setStyle(TextInputStyle.Short)
+          )
         );
-      } else {
-        row.addComponents(
-          new ButtonBuilder()
-            .setLabel(btn.label)
-            .setStyle(btn.style || ButtonStyle.Primary)
-            .setCustomId(`msg_${i}`)
-        );
+
+        return interaction.showModal(modal);
       }
-    });
 
-    if (row.components.length > 0) rows.push(row);
+      // ===== ADICIONAR BOTÃO =====
+      if (id === 'add_button') {
+        const modal = new ModalBuilder()
+          .setCustomId('criar_botao')
+          .setTitle('Adicionar botão');
 
-    await interaction.channel.send({
-      embeds: session.embeds.map(e => montarEmbed(e)),
-      components: rows
-    });
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza, vermelho)').setStyle(TextInputStyle.Short)
+          )
+        );
 
-    return interaction.reply({ content: 'Enviado!', ephemeral: true });
-  }
+        return interaction.showModal(modal);
+      }
 
-  return interaction.update({
-    embeds: [montarEmbed(session.embeds[session.atual])],
-    components: gerarMenu(interaction.user.id)
-  });
-}
+      if (id === 'add_embed') {
+        session.embeds.push({});
+        session.atual = session.embeds.length - 1;
+      }
+
+      if (id === 'delete') {
+        session.embeds.splice(session.atual, 1);
+        if (session.embeds.length === 0) session.embeds.push({});
+        session.atual = 0;
+      }
+
+      if (id === 'edit') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
+      if (id === 'voltar') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
+      if (id === 'enviar') {
+
+        const rows = [];
+        let row = new ActionRowBuilder();
+
+        session.buttons.forEach((btn, i) => {
+
+          if (i % 5 === 0 && i !== 0) {
+            rows.push(row);
+            row = new ActionRowBuilder();
+          }
+
+          if (btn.valor.startsWith('http')) {
+            row.addComponents(
+              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor)
+            );
+          } else {
+            row.addComponents(
+              new ButtonBuilder()
+                .setLabel(btn.label)
+                .setStyle(btn.style || ButtonStyle.Primary)
+                .setCustomId(`msg_${i}`)
+            );
+          }
+        });
+
+        if (row.components.length > 0) rows.push(row);
+
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e)),
+          components: rows
+        });
+
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
+      }
+
+      return interaction.update({
+        embeds: [montarEmbed(session.embeds[session.atual])],
+        components: gerarMenu(interaction.user.id)
+      });
+    }
+
+    // MODAL
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'criar_botao') {
-  const label = interaction.fields.getTextInputValue('label');
-  const valor = interaction.fields.getTextInputValue('valor');
-  const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase() || 'azul';
+        const label = interaction.fields.getTextInputValue('label');
+        const valor = interaction.fields.getTextInputValue('valor');
+        const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase() || 'azul';
 
-  session.buttons.push({
-    label,
-    valor,
-    style: styleMap[cor] || ButtonStyle.Primary
-  });
+        session.buttons.push({
+          label,
+          valor,
+          style: styleMap[cor] || ButtonStyle.Primary
+        });
 
-  return interaction.reply({ content: 'Botão criado!', ephemeral: true });
-}
+        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+      }
 
       const valor = interaction.fields.getTextInputValue('input') || '⠀';
 
@@ -368,17 +359,18 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.customId === 'thumb') atual.thumbnail = valor;
 
       if (interaction.customId === 'autor_full') {
-  atual.author = {
-    nome: interaction.fields.getTextInputValue('nome'),
-    icon: interaction.fields.getTextInputValue('icon'),
-    url: interaction.fields.getTextInputValue('url')
-  };
+        atual.author = {
+          nome: interaction.fields.getTextInputValue('nome'),
+          icon: interaction.fields.getTextInputValue('icon'),
+          url: interaction.fields.getTextInputValue('url')
+        };
 
-  return interaction.update({
-    embeds: [montarEmbed(atual)],
-    components: gerarEditor()
-  });
-}
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+    }
 
   } catch (err) {
     console.error(err);
@@ -397,10 +389,10 @@ function montarEmbed(data) {
 
   if (data.author) {
     embed.setAuthor({
-  name: data.author.nome || '⠀',
-  iconURL: data.author.icon || undefined,
-  url: data.author.url || undefined
-});
+      name: data.author.nome || '⠀',
+      iconURL: data.author.icon || undefined,
+      url: data.author.url || undefined
+    });
   }
 
   return embed;
