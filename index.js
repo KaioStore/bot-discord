@@ -36,6 +36,14 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
+// ===== CORES DOS BOTÕES =====
+const styleMap = {
+  azul: ButtonStyle.Primary,
+  verde: ButtonStyle.Success,
+  cinza: ButtonStyle.Secondary,
+  vermelho: ButtonStyle.Danger
+};
+
 // ===== BANCO =====
 let db = { total: 419, pedidos: 450 };
 let gastos = {};
@@ -66,7 +74,6 @@ client.on('interactionCreate', async (interaction) => {
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
 
-    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
@@ -88,7 +95,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ===== SALDO =====
       if (interaction.commandName === 'saldo') {
         const user = interaction.options.getUser('usuario') || interaction.user;
         const total = gastos[user.id] || 0;
@@ -105,7 +111,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ===== GASTAR =====
       if (interaction.commandName === 'gastar') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -118,7 +123,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: `Adicionado R$${valor} para ${user.username}`, ephemeral: true });
       }
 
-      // ===== REMOVER =====
       if (interaction.commandName === 'removergasto') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -132,7 +136,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, ephemeral: true });
       }
 
-      // ===== AVALIAR =====
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -159,7 +162,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply('Avaliação enviada.');
       }
 
-      // ===== RANK =====
       if (interaction.commandName === 'rank') {
 
         const rankingArray = Object.entries(gastos)
@@ -181,14 +183,12 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
-    // ===== EMBED SYSTEM =====
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
     let atual = session.embeds[session.atual];
     if (!atual) return;
 
-    // SELECT
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -198,23 +198,18 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // BOTÕES
     if (interaction.isButton()) {
 
       const id = interaction.customId;
 
-      // 🔥 MODAL COM VALOR SALVO
-      if (['titulo','desc','imagem','thumb','autor','autor_url'].includes(id)) {
-
-        const atual = session.embeds[session.atual] || {};
+      // CAMPOS
+      if (['titulo','desc','imagem','thumb'].includes(id)) {
 
         let valorAtual = '';
         if (id === 'titulo') valorAtual = atual.title || '';
         if (id === 'desc') valorAtual = atual.description || '';
         if (id === 'imagem') valorAtual = atual.image || '';
         if (id === 'thumb') valorAtual = atual.thumbnail || '';
-        if (id === 'autor') valorAtual = atual.author?.nome || '';
-        if (id === 'autor_url') valorAtual = atual.author?.url || '';
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -224,7 +219,7 @@ client.on('interactionCreate', async (interaction) => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(id === 'autor_url' ? 'Link do autor' : 'Digite')
+              .setLabel('Digite')
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
               .setValue(valorAtual)
           )
@@ -233,7 +228,32 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.showModal(modal);
       }
 
-      // ADICIONAR BOTÃO
+      // AUTOR
+      if (id === 'autor') {
+        const modal = new ModalBuilder()
+          .setCustomId('autor_modal')
+          .setTitle('Autor');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('nome')
+              .setLabel('Nome')
+              .setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('icon')
+              .setLabel('Icon URL (opcional)')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(false)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      // BOTÃO
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
@@ -245,38 +265,15 @@ client.on('interactionCreate', async (interaction) => {
           ),
           new ActionRowBuilder().addComponents(
             new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza, vermelho)').setStyle(TextInputStyle.Short)
           )
         );
 
         return interaction.showModal(modal);
       }
 
-      if (id === 'add_embed') {
-        session.embeds.push({});
-        session.atual = session.embeds.length - 1;
-      }
-
-      if (id === 'delete') {
-        session.embeds.splice(session.atual, 1);
-        if (session.embeds.length === 0) session.embeds.push({});
-        session.atual = 0;
-      }
-
-      if (id === 'edit') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
-      if (id === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
-      // ENVIAR
       if (id === 'enviar') {
 
         const rows = [];
@@ -295,7 +292,10 @@ client.on('interactionCreate', async (interaction) => {
             );
           } else {
             row.addComponents(
-              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Primary).setCustomId(`msg_${i}`)
+              new ButtonBuilder()
+                .setLabel(btn.label)
+                .setStyle(btn.style)
+                .setCustomId(`msg_${i}`)
             );
           }
         });
@@ -309,23 +309,32 @@ client.on('interactionCreate', async (interaction) => {
 
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
-
-      return interaction.update({
-        embeds: [montarEmbed(session.embeds[session.atual])],
-        components: gerarMenu(interaction.user.id)
-      });
     }
 
-    // MODAL
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'criar_botao') {
         const label = interaction.fields.getTextInputValue('label');
         const valor = interaction.fields.getTextInputValue('valor');
+        const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
 
-        session.buttons.push({ label, valor });
+        session.buttons.push({
+          label,
+          valor,
+          style: styleMap[cor] || ButtonStyle.Primary
+        });
 
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+      }
+
+      if (interaction.customId === 'autor_modal') {
+        const nome = interaction.fields.getTextInputValue('nome');
+        const icon = interaction.fields.getTextInputValue('icon');
+
+        atual.author = {
+          nome,
+          icon
+        };
       }
 
       const valor = interaction.fields.getTextInputValue('input') || '⠀';
@@ -334,16 +343,6 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.customId === 'desc') atual.description = valor;
       if (interaction.customId === 'imagem') atual.image = valor;
       if (interaction.customId === 'thumb') atual.thumbnail = valor;
-
-      if (interaction.customId === 'autor') {
-        if (!atual.author) atual.author = {};
-        atual.author.nome = valor;
-      }
-
-      if (interaction.customId === 'autor_url') {
-        if (!atual.author) atual.author = {};
-        atual.author.url = valor;
-      }
 
       return interaction.update({
         embeds: [montarEmbed(atual)],
@@ -369,7 +368,7 @@ function montarEmbed(data) {
   if (data.author) {
     embed.setAuthor({
       name: data.author.nome || '⠀',
-      url: data.author.url || undefined
+      iconURL: data.author.icon || undefined
     });
   }
 
@@ -411,7 +410,6 @@ function gerarEditor() {
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('autor_url').setLabel('Link Autor').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
     )
   ];
