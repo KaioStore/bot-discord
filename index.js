@@ -65,7 +65,7 @@ function salvar() {
 const embedSessions = {};
 
 client.on('ready', () => {
-  console.log(`Logado como ${client.user.tag}`);
+  console.log(`✅ Logado como ${client.user.tag}`);
 });
 
 // ===== INTERAÇÕES =====
@@ -186,8 +186,7 @@ client.on('interactionCreate', async (interaction) => {
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
-    let atual = session.embeds[session.atual];
-    if (!atual) return;
+    let atual = session.embeds[session.atual] || {};
 
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
@@ -218,7 +217,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ===== EDITAR CAMPOS =====
       if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
 
         let valorAtual = '';
@@ -239,9 +237,7 @@ client.on('interactionCreate', async (interaction) => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(id === 'autor'
-                ? 'Nome | URL da imagem | URL clicável'
-                : 'Digite')
+              .setLabel(id === 'autor' ? 'Nome | URL imagem | URL clicável' : 'Digite')
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
               .setValue(valorAtual)
           )
@@ -268,31 +264,6 @@ client.on('interactionCreate', async (interaction) => {
         );
 
         return interaction.showModal(modal);
-      }
-
-      if (id === 'add_embed') {
-        session.embeds.push({});
-        session.atual = session.embeds.length - 1;
-      }
-
-      if (id === 'delete') {
-        session.embeds.splice(session.atual, 1);
-        if (session.embeds.length === 0) session.embeds.push({});
-        session.atual = 0;
-      }
-
-      if (id === 'edit') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
-      if (id === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
       }
 
       if (id === 'enviar') {
@@ -357,13 +328,13 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.customId === 'thumb') atual.thumbnail = valor;
 
       if (interaction.customId === 'autor') {
-        if (!atual.author) atual.author = {};
-
         const partes = valor.split('|');
 
-        atual.author.nome = partes[0]?.trim() || '';
-        atual.author.icon = partes[1]?.trim() || '';
-        atual.author.url = partes[2]?.trim() || '';
+        atual.author = {
+          nome: partes[0]?.trim() || '',
+          icon: partes[1]?.trim() || '',
+          url: partes[2]?.trim() || ''
+        };
       }
 
       return interaction.update({
@@ -387,9 +358,9 @@ function montarEmbed(data) {
   if (data.image) embed.setImage(data.image);
   if (data.thumbnail) embed.setThumbnail(data.thumbnail);
 
-  if (data.author) {
+  if (data.author && data.author.nome) {
     embed.setAuthor({
-      name: data.author.nome || '⠀',
+      name: data.author.nome,
       iconURL: data.author.icon || undefined,
       url: data.author.url || undefined
     });
