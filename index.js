@@ -182,7 +182,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.showModal(modal);
       }
 
-      // ===== AUTOR
+      // ===== AUTOR (FIX NÃO SUMIR)
       if (id === 'autor') {
         const modal = new ModalBuilder()
           .setCustomId('autor_full')
@@ -244,14 +244,14 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
 
-      // ===== EDITAR CAMPOS (FIX IMAGE BUG)
+      // ===== EDITAR CAMPOS (FIX FINAL)
       if (['titulo','desc','imagem','thumb'].includes(id)) {
 
         let valorAtual = '';
         if (id === 'titulo') valorAtual = atual.title || '';
         if (id === 'desc') valorAtual = atual.description || '';
-        if (id === 'imagem') valorAtual = atual.image?.url || atual.image || '';
-        if (id === 'thumb') valorAtual = atual.thumbnail?.url || atual.thumbnail || '';
+        if (id === 'imagem') valorAtual = atual.image || '';
+        if (id === 'thumb') valorAtual = atual.thumbnail || '';
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -342,21 +342,21 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
-      // ===== FIX FINAL IMAGE
+      // 🔥 FIX FINAL IMAGEM
       if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
-        const valor = interaction.fields.getTextInputValue('input');
+        const valor = interaction.fields.getTextInputValue('input')?.trim();
 
         if (interaction.customId === 'titulo') atual.title = valor || null;
         if (interaction.customId === 'desc') atual.description = valor || '⠀';
 
         if (interaction.customId === 'imagem') {
-          if (!valor) delete atual.image;
-          else atual.image = { url: valor };
+          if (!valor || !valor.startsWith('http')) delete atual.image;
+          else atual.image = valor;
         }
 
         if (interaction.customId === 'thumb') {
-          if (!valor) delete atual.thumbnail;
-          else atual.thumbnail = { url: valor };
+          if (!valor || !valor.startsWith('http')) delete atual.thumbnail;
+          else atual.thumbnail = valor;
         }
 
         return interaction.update({
@@ -378,13 +378,8 @@ function montarEmbed(data) {
   if (data.title) embed.setTitle(data.title);
   embed.setDescription(data.description || '⠀');
 
-  if (data.image) {
-    embed.setImage(typeof data.image === 'string' ? data.image : data.image.url);
-  }
-
-  if (data.thumbnail) {
-    embed.setThumbnail(typeof data.thumbnail === 'string' ? data.thumbnail : data.thumbnail.url);
-  }
+  if (data.image) embed.setImage(data.image);
+  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
 
   if (data.author) {
     embed.setAuthor({
