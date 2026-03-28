@@ -131,6 +131,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     let atual = session.embeds[session.atual];
     if (!atual) return;
 
+    // ===== SELECT =====
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -143,6 +144,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      // ===== BOTÃO MSG =====
       if (id.startsWith('msg_')) {
         const index = Number(id.split('_')[1]);
         const btn = session.buttons[index];
@@ -181,7 +183,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.showModal(modal);
       }
 
-      // ===== AUTOR
+      // ===== AUTOR (FIX)
       if (id === 'autor') {
         const modal = new ModalBuilder()
           .setCustomId('autor_full')
@@ -189,17 +191,26 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         modal.addComponents(
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('nome').setLabel('Nome').setStyle(TextInputStyle.Short)
+            new TextInputBuilder()
+              .setCustomId('nome')
+              .setLabel('Nome')
+              .setStyle(TextInputStyle.Short)
+              .setValue(atual.author?.nome || '')
           ),
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setRequired(false)
+            new TextInputBuilder()
+              .setCustomId('icon')
+              .setLabel('URL da imagem')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(false)
+              .setValue(atual.author?.icon || '')
           )
         );
 
         return interaction.showModal(modal);
       }
 
-      // ===== ENVIAR
+      // ===== ENVIAR (FIX)
       if (id === 'enviar') {
         const rows = [];
         let row = new ActionRowBuilder();
@@ -234,8 +245,9 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
 
-      // ===== RESTO (SEU)
+      // ===== EDITAR CAMPOS
       if (['titulo','desc','imagem','thumb'].includes(id)) {
+
         let valorAtual = '';
         if (id === 'titulo') valorAtual = atual.title || '';
         if (id === 'desc') valorAtual = atual.description || '';
@@ -298,13 +310,19 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     if (interaction.isModalSubmit()) {
 
+      // ===== AUTOR FIX FINAL
       if (interaction.customId === 'autor_full') {
         const nome = interaction.fields.getTextInputValue('nome');
         const icon = interaction.fields.getTextInputValue('icon');
 
-        if (!atual.author) atual.author = {};
-        atual.author.nome = nome;
-        atual.author.icon = icon;
+        if (!nome && !icon) {
+          delete atual.author;
+        } else {
+          atual.author = {
+            nome: nome || '⠀',
+            icon: icon || undefined
+          };
+        }
 
         return interaction.update({
           embeds: [montarEmbed(atual)],
@@ -326,32 +344,12 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
+      // ===== CAMPOS FIX
       if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
-const valor = interaction.fields.getTextInputValue('input');
-
-if (interaction.customId === 'titulo') atual.title = valor || null;
-
-if (interaction.customId === 'desc') {
-  atual.description = valor || '⠀';
-}
-
-if (interaction.customId === 'imagem') {
-  if (!valor || !valor.startsWith('http')) {
-    delete atual.image;
-  } else {
-    atual.image = valor;
-  }
-}
-
-if (interaction.customId === 'thumb') {
-  if (!valor || !valor.startsWith('http')) {
-    delete atual.thumbnail;
-  } else {
-    atual.thumbnail = valor;
-  }
-}
+        const valor = interaction.fields.getTextInputValue('input');
 
         if (interaction.customId === 'titulo') atual.title = valor || null;
+
         if (interaction.customId === 'desc') atual.description = valor || '⠀';
 
         if (interaction.customId === 'imagem') {
