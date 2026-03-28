@@ -213,7 +213,7 @@ client.on('interactionCreate', async (interaction) => {
       embeds: [
         new EmbedBuilder()
           .setColor('#2b2d31')
-          .setDescription(`📩 ${btn.valor}`)
+          .setDescription(`${btn.valor}`)
       ],
       ephemeral: true
     });
@@ -251,24 +251,24 @@ client.on('interactionCreate', async (interaction) => {
 
   // ===== ADICIONAR BOTÃO =====
   if (id === 'add_button') {
-    const modal = new ModalBuilder()
-      .setCustomId('criar_botao')
-      .setTitle('Criar botão');
+  const modal = new ModalBuilder()
+    .setCustomId('criar_botao')
+    .setTitle('Adicionar botão');
 
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder().setCustomId('cor').setLabel('Cor (Primary, Success, Secondary, Danger)').setStyle(TextInputStyle.Short)
-      )
-    );
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza, vermelho)').setStyle(TextInputStyle.Short)
+    )
+  );
 
-    return interaction.showModal(modal);
-  }
+  return interaction.showModal(modal);
+}
 
   // ===== RESTAURA SUAS PÁGINAS =====
   if (id === 'add_embed') {
@@ -341,14 +341,18 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'criar_botao') {
-        const label = interaction.fields.getTextInputValue('label');
-        const valor = interaction.fields.getTextInputValue('valor');
-        const cor = interaction.fields.getTextInputValue('cor') || 'Primary';
+  const label = interaction.fields.getTextInputValue('label');
+  const valor = interaction.fields.getTextInputValue('valor');
+  const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase() || 'azul';
 
-        session.buttons.push({ label, valor, style: cor });
+  session.buttons.push({
+    label,
+    valor,
+    style: styleMap[cor] || ButtonStyle.Primary
+  });
 
-        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
-      }
+  return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+}
 
       const valor = interaction.fields.getTextInputValue('input') || '⠀';
 
