@@ -109,7 +109,6 @@ client.on('interactionCreate', async (interaction) => {
         const embed = new EmbedBuilder()
           .setColor('#2b2d31')
           .setTitle('**Avaliação Recebida! 🖤**')
-          .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
           .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
           .setDescription(`**•** **Avaliação:** ${texto}
 **•** **Total de avaliações:** ${db.total}
@@ -246,13 +245,12 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
 
       // ===== EDITAR CAMPOS
-      if (['titulo','desc','imagem','thumb'].includes(id)) {
+      if (['titulo','desc','imagem'].includes(id)) {
 
         let valorAtual = '';
         if (id === 'titulo') valorAtual = atual.title || '';
         if (id === 'desc') valorAtual = atual.description || '';
         if (id === 'imagem') valorAtual = atual.image?.url || '';
-        if (id === 'thumb') valorAtual = atual.thumbnail?.url || '';
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -340,7 +338,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
-      if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
+      if (['titulo','desc','imagem'].includes(interaction.customId)) {
         const valor = interaction.fields.getTextInputValue('input')?.trim();
 
         if (interaction.customId === 'titulo') atual.title = valor || null;
@@ -349,11 +347,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         if (interaction.customId === 'imagem') {
           if (!valor) delete atual.image;
           else atual.image = { url: valor };
-        }
-
-        if (interaction.customId === 'thumb') {
-          if (!valor) delete atual.thumbnail;
-          else atual.thumbnail = { url: valor };
         }
 
         return interaction.update({
@@ -376,7 +369,6 @@ function montarEmbed(data) {
   embed.setDescription(data.description || '⠀');
 
   if (data.image?.url) embed.setImage(data.image.url);
-  if (data.thumbnail?.url) embed.setThumbnail(data.thumbnail.url);
 
   if (data.author) {
     embed.setAuthor({
@@ -418,8 +410,7 @@ function gerarEditor() {
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary)
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary),
