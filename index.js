@@ -401,17 +401,25 @@ function montarEmbed(data) {
 function gerarMenu(userId) {
   const session = embedSessions[userId];
 
+  const options = session.embeds.map((e, i) => ({
+    label: `Embed ${i + 1}`,
+    value: `${i}`
+  }));
+
+  // 🔥 GARANTE QUE SEMPRE TENHA PELO MENOS 2
+  if (options.length === 1) {
+    options.push({
+      label: 'Embed 2',
+      value: '1'
+    });
+  }
+
   return [
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('select')
         .setPlaceholder('Selecionar embed')
-        .addOptions(
-          session.embeds.map((e,i)=>({
-            label:`Embed ${i+1}`,
-            value:`${i}`
-          }))
-        )
+        .addOptions(options)
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
