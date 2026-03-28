@@ -216,21 +216,28 @@ client.on('interactionCreate', async (interaction) => {
 
       if (['titulo','desc','imagem','thumb'].includes(id)) {
 
-        const modal = new ModalBuilder()
-          .setCustomId(id)
-          .setTitle('Editar');
+  let valorAtual = '';
+  if (id === 'titulo') valorAtual = atual.title || '';
+  if (id === 'desc') valorAtual = atual.description || '';
+  if (id === 'imagem') valorAtual = atual.image || '';
+  if (id === 'thumb') valorAtual = atual.thumbnail || '';
 
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('input')
-              .setLabel('Digite')
-              .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
-          )
-        );
+  const modal = new ModalBuilder()
+    .setCustomId(id)
+    .setTitle('Editar');
 
-        return interaction.showModal(modal);
-      }
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('input')
+        .setLabel('Digite')
+        .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
+        .setValue(valorAtual) // 🔥 AQUI É O SEGREDO
+    )
+  );
+
+  return interaction.showModal(modal);
+}
 
       if (id === 'autor') {
         const modal = new ModalBuilder()
