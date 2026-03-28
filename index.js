@@ -344,26 +344,37 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
       // 🔥 FIX FINAL IMAGEM
       if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
-        const valor = interaction.fields.getTextInputValue('input')?.trim();
+  const valor = interaction.fields.getTextInputValue('input')?.trim();
 
-        if (interaction.customId === 'titulo') atual.title = valor || null;
-        if (interaction.customId === 'desc') atual.description = valor || '⠀';
+  if (interaction.customId === 'titulo') {
+    atual.title = valor || null;
+  }
 
-        if (interaction.customId === 'imagem') {
-          if (!valor || !valor.startsWith('http')) delete atual.image;
-          else atual.image = valor;
-        }
+  if (interaction.customId === 'desc') {
+    atual.description = valor || '⠀';
+  }
 
-        if (interaction.customId === 'thumb') {
-          if (!valor || !valor.startsWith('http')) delete atual.thumbnail;
-          else atual.thumbnail = valor;
-        }
+  if (interaction.customId === 'imagem') {
+    if (!valor || !valor.startsWith('http')) {
+      delete atual.image;
+    } else {
+      atual.image = { url: valor };
+    }
+  }
 
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
+  if (interaction.customId === 'thumb') {
+    if (!valor || !valor.startsWith('http')) {
+      delete atual.thumbnail;
+    } else {
+      atual.thumbnail = { url: valor };
+    }
+  }
+
+  return interaction.update({
+    embeds: [montarEmbed(atual)],
+    components: gerarEditor()
+  });
+}
     }
 
   } catch (err) {
@@ -378,8 +389,8 @@ function montarEmbed(data) {
   if (data.title) embed.setTitle(data.title);
   embed.setDescription(data.description || '⠀');
 
-  if (data.image) embed.setImage(data.image);
-  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
+  if (data.image?.url) embed.setImage(data.image.url);
+  if (data.thumbnail?.url) embed.setThumbnail(data.thumbnail.url);
 
   if (data.author) {
     embed.setAuthor({
