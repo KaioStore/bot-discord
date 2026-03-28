@@ -327,7 +327,29 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
 
       if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
-        const valor = interaction.fields.getTextInputValue('input');
+const valor = interaction.fields.getTextInputValue('input');
+
+if (interaction.customId === 'titulo') atual.title = valor || null;
+
+if (interaction.customId === 'desc') {
+  atual.description = valor || '⠀';
+}
+
+if (interaction.customId === 'imagem') {
+  if (!valor || !valor.startsWith('http')) {
+    delete atual.image;
+  } else {
+    atual.image = valor;
+  }
+}
+
+if (interaction.customId === 'thumb') {
+  if (!valor || !valor.startsWith('http')) {
+    delete atual.thumbnail;
+  } else {
+    atual.thumbnail = valor;
+  }
+}
 
         if (interaction.customId === 'titulo') atual.title = valor || null;
         if (interaction.customId === 'desc') atual.description = valor || '⠀';
