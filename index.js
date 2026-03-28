@@ -141,6 +141,23 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      if (id === 'add_embed') {
+        session.embeds.push({});
+        session.atual = session.embeds.length - 1;
+
+        return interaction.update({
+          embeds: [montarEmbed(session.embeds[session.atual])],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
+      if (id === 'edit') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
       if (['titulo','desc','imagem','thumb'].includes(id)) {
 
         let valorAtual = '';
@@ -183,12 +200,12 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         if (interaction.customId === 'desc') atual.description = valor || '⠀';
 
         if (interaction.customId === 'imagem') {
-          if (!valor) delete atual.image;
+          if (!valor || !valor.startsWith('http')) delete atual.image;
           else atual.image = { url: valor };
         }
 
         if (interaction.customId === 'thumb') {
-          if (!valor) delete atual.thumbnail;
+          if (!valor || !valor.startsWith('http')) delete atual.thumbnail;
           else atual.thumbnail = { url: valor };
         }
 
@@ -214,17 +231,9 @@ function montarEmbed(data) {
   if (data.image?.url) embed.setImage(data.image.url);
   if (data.thumbnail?.url) embed.setThumbnail(data.thumbnail.url);
 
-  if (data.author) {
-    embed.setAuthor({
-      name: data.author.nome || '⠀',
-      iconURL: data.author.icon || undefined
-    });
-  }
-
   return embed;
 }
 
-// ✅ AGORA FORA (CORRETO)
 function gerarMenu(userId) {
   const session = embedSessions[userId];
 
@@ -241,6 +250,7 @@ function gerarMenu(userId) {
         )
     ),
     new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary)
     )
   ];
