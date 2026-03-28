@@ -419,7 +419,7 @@ function montarEmbed(data) {
   }
 
   // 🔥 força layout completo igual bot grande
-  embed.setFooter({ text: ' ' });
+  embed.setFooter({ text: '‎' });
 
   return embed;
 }
