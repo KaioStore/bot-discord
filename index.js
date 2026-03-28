@@ -73,7 +73,6 @@ client.on('interactionCreate', async (interaction) => {
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
 
-    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
@@ -179,7 +178,6 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
-    // ===== SISTEMA EMBED =====
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
@@ -198,19 +196,24 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton()) {
       const id = interaction.customId;
 
-      // BOTÃO RESPOSTA
+      // 🔥 BOTÃO AGORA ENVIA EMBED BONITO
       if (id.startsWith('msg_')) {
         const index = Number(id.split('_')[1]);
         const btn = session.buttons[index];
         if (!btn) return;
 
-        return interaction.reply({
-          content: btn.valor,
+        await interaction.deferUpdate();
+
+        return interaction.followUp({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#2b2d31')
+              .setDescription(btn.valor)
+          ],
           ephemeral: true
         });
       }
 
-      // CAMPOS
       if (['titulo','desc','imagem','thumb'].includes(id)) {
 
         const modal = new ModalBuilder()
@@ -229,7 +232,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.showModal(modal);
       }
 
-      // AUTOR (CORRIGIDO)
       if (id === 'autor') {
         const modal = new ModalBuilder()
           .setCustomId('autor_full')
@@ -254,7 +256,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.showModal(modal);
       }
 
-      // BOTÃO COM COR
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
@@ -265,7 +266,7 @@ client.on('interactionCreate', async (interaction) => {
             new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
           ),
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
+            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem').setStyle(TextInputStyle.Short)
           ),
           new ActionRowBuilder().addComponents(
             new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza, vermelho)').setStyle(TextInputStyle.Short)
@@ -342,7 +343,6 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ===== MODAL =====
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'autor_full') {
