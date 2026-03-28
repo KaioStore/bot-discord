@@ -36,7 +36,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ===== CORES DOS BOTÕES =====
+// ===== CORES BOTÕES =====
 const styleMap = {
   azul: ButtonStyle.Primary,
   verde: ButtonStyle.Success,
@@ -68,12 +68,12 @@ client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
 });
 
-// ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
   try {
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
 
+    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
@@ -88,7 +88,7 @@ client.on('interactionCreate', async (interaction) => {
             new EmbedBuilder()
               .setColor('#2b2d31')
               .setTitle('Abrir painel embed')
-              .setDescription('Use os botões abaixo para editar')
+              .setDescription('Use os botões abaixo')
           ],
           components: gerarMenu(interaction.user.id),
           ephemeral: true
@@ -163,9 +163,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.commandName === 'rank') {
-
-        const rankingArray = Object.entries(gastos)
-          .sort(([,a],[,b]) => b - a);
+        const rankingArray = Object.entries(gastos).sort(([,a],[,b]) => b - a);
 
         const embed = new EmbedBuilder()
           .setColor('#2b2d31')
@@ -173,9 +171,7 @@ client.on('interactionCreate', async (interaction) => {
           .setDescription(
             rankingArray.map(([id, total], i) => {
               const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-
-              return `${medal} [<@${id}>](${SITE}/user/${id})
-💰 Total: R$${total}`;
+              return `${medal} <@${id}>\n💰 R$${total}`;
             }).join('\n\n')
           );
 
@@ -183,6 +179,7 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
+    // ===== SISTEMA EMBED =====
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
@@ -199,17 +196,22 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isButton()) {
-
       const id = interaction.customId;
+
+      // BOTÃO RESPOSTA
+      if (id.startsWith('msg_')) {
+        const index = Number(id.split('_')[1]);
+        const btn = session.buttons[index];
+        if (!btn) return;
+
+        return interaction.reply({
+          content: btn.valor,
+          ephemeral: true
+        });
+      }
 
       // CAMPOS
       if (['titulo','desc','imagem','thumb'].includes(id)) {
-
-        let valorAtual = '';
-        if (id === 'titulo') valorAtual = atual.title || '';
-        if (id === 'desc') valorAtual = atual.description || '';
-        if (id === 'imagem') valorAtual = atual.image || '';
-        if (id === 'thumb') valorAtual = atual.thumbnail || '';
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -221,17 +223,16 @@ client.on('interactionCreate', async (interaction) => {
               .setCustomId('input')
               .setLabel('Digite')
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
-              .setValue(valorAtual)
           )
         );
 
         return interaction.showModal(modal);
       }
 
-      // AUTOR
+      // AUTOR (CORRIGIDO)
       if (id === 'autor') {
         const modal = new ModalBuilder()
-          .setCustomId('autor_modal')
+          .setCustomId('autor_full')
           .setTitle('Autor');
 
         modal.addComponents(
@@ -244,7 +245,7 @@ client.on('interactionCreate', async (interaction) => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('icon')
-              .setLabel('Icon URL (opcional)')
+              .setLabel('URL da imagem')
               .setStyle(TextInputStyle.Short)
               .setRequired(false)
           )
@@ -253,11 +254,11 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.showModal(modal);
       }
 
-      // BOTÃO
+      // BOTÃO COM COR
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
-          .setTitle('Criar botão');
+          .setTitle('Botão');
 
         modal.addComponents(
           new ActionRowBuilder().addComponents(
@@ -272,6 +273,31 @@ client.on('interactionCreate', async (interaction) => {
         );
 
         return interaction.showModal(modal);
+      }
+
+      if (id === 'add_embed') {
+        session.embeds.push({});
+        session.atual = session.embeds.length - 1;
+      }
+
+      if (id === 'delete') {
+        session.embeds.splice(session.atual, 1);
+        if (session.embeds.length === 0) session.embeds.push({});
+        session.atual = 0;
+      }
+
+      if (id === 'edit') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
+      if (id === 'voltar') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
       }
 
       if (id === 'enviar') {
@@ -294,7 +320,7 @@ client.on('interactionCreate', async (interaction) => {
             row.addComponents(
               new ButtonBuilder()
                 .setLabel(btn.label)
-                .setStyle(btn.style)
+                .setStyle(btn.style || ButtonStyle.Primary)
                 .setCustomId(`msg_${i}`)
             );
           }
@@ -309,9 +335,29 @@ client.on('interactionCreate', async (interaction) => {
 
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
+
+      return interaction.update({
+        embeds: [montarEmbed(session.embeds[session.atual])],
+        components: gerarMenu(interaction.user.id)
+      });
     }
 
+    // ===== MODAL =====
     if (interaction.isModalSubmit()) {
+
+      if (interaction.customId === 'autor_full') {
+        const nome = interaction.fields.getTextInputValue('nome');
+        const icon = interaction.fields.getTextInputValue('icon');
+
+        if (!atual.author) atual.author = {};
+        atual.author.nome = nome;
+        atual.author.icon = icon;
+
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
 
       if (interaction.customId === 'criar_botao') {
         const label = interaction.fields.getTextInputValue('label');
@@ -327,27 +373,19 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
-      if (interaction.customId === 'autor_modal') {
-        const nome = interaction.fields.getTextInputValue('nome');
-        const icon = interaction.fields.getTextInputValue('icon');
+      if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
+        const valor = interaction.fields.getTextInputValue('input') || '⠀';
 
-        atual.author = {
-          nome,
-          icon
-        };
+        if (interaction.customId === 'titulo') atual.title = valor;
+        if (interaction.customId === 'desc') atual.description = valor;
+        if (interaction.customId === 'imagem') atual.image = valor;
+        if (interaction.customId === 'thumb') atual.thumbnail = valor;
+
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
       }
-
-      const valor = interaction.fields.getTextInputValue('input') || '⠀';
-
-      if (interaction.customId === 'titulo') atual.title = valor;
-      if (interaction.customId === 'desc') atual.description = valor;
-      if (interaction.customId === 'imagem') atual.image = valor;
-      if (interaction.customId === 'thumb') atual.thumbnail = valor;
-
-      return interaction.update({
-        embeds: [montarEmbed(atual)],
-        components: gerarEditor()
-      });
     }
 
   } catch (err) {
