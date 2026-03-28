@@ -199,7 +199,7 @@ client.on('interactionCreate', async (interaction) => {
 if (interaction.isButton()) {
   const id = interaction.customId;
 
-  // ===== BOTÃO RESPOSTA (🔥 CORRIGIDO) =====
+  // ===== BOTÃO RESPOSTA (CORRIGIDO) =====
   if (id.startsWith('msg_')) {
     const index = Number(id.split('_')[1]);
     const btn = session.buttons[index];
@@ -265,96 +265,93 @@ if (interaction.isButton()) {
     return interaction.showModal(modal);
   }
 
-  // ===== RESTO (SEU CÓDIGO NORMAL) =====
-}
+  // ===== ADICIONAR BOTÃO =====
+  if (id === 'add_button') {
+    const modal = new ModalBuilder()
+      .setCustomId('criar_botao')
+      .setTitle('Adicionar botão');
 
-      // ===== ADICIONAR BOTÃO =====
-      if (id === 'add_button') {
-        const modal = new ModalBuilder()
-          .setCustomId('criar_botao')
-          .setTitle('Adicionar botão');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza, vermelho)').setStyle(TextInputStyle.Short)
+      )
+    );
 
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('valor').setLabel('Link ou mensagem').setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza, vermelho)').setStyle(TextInputStyle.Short)
-          )
+    return interaction.showModal(modal);
+  }
+
+  if (id === 'add_embed') {
+    session.embeds.push({});
+    session.atual = session.embeds.length - 1;
+  }
+
+  if (id === 'delete') {
+    session.embeds.splice(session.atual, 1);
+    if (session.embeds.length === 0) session.embeds.push({});
+    session.atual = 0;
+  }
+
+  if (id === 'edit') {
+    return interaction.update({
+      embeds: [montarEmbed(atual)],
+      components: gerarEditor()
+    });
+  }
+
+  if (id === 'voltar') {
+    return interaction.update({
+      embeds: [montarEmbed(atual)],
+      components: gerarMenu(interaction.user.id)
+    });
+  }
+
+  if (id === 'enviar') {
+
+    const rows = [];
+    let row = new ActionRowBuilder();
+
+    session.buttons.forEach((btn, i) => {
+
+      if (i % 5 === 0 && i !== 0) {
+        rows.push(row);
+        row = new ActionRowBuilder();
+      }
+
+      if (btn.valor.startsWith('http')) {
+        row.addComponents(
+          new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor)
         );
-
-        return interaction.showModal(modal);
+      } else {
+        row.addComponents(
+          new ButtonBuilder()
+            .setLabel(btn.label)
+            .setStyle(btn.style || ButtonStyle.Primary)
+            .setCustomId(`msg_${i}`)
+        );
       }
+    });
 
-      if (id === 'add_embed') {
-        session.embeds.push({});
-        session.atual = session.embeds.length - 1;
-      }
+    if (row.components.length > 0) rows.push(row);
 
-      if (id === 'delete') {
-        session.embeds.splice(session.atual, 1);
-        if (session.embeds.length === 0) session.embeds.push({});
-        session.atual = 0;
-      }
+    await interaction.channel.send({
+      embeds: session.embeds.map(e => montarEmbed(e)),
+      components: rows
+    });
 
-      if (id === 'edit') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
+    return interaction.reply({ content: 'Enviado!', ephemeral: true });
+  }
 
-      if (id === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
-      if (id === 'enviar') {
-
-        const rows = [];
-        let row = new ActionRowBuilder();
-
-        session.buttons.forEach((btn, i) => {
-
-          if (i % 5 === 0 && i !== 0) {
-            rows.push(row);
-            row = new ActionRowBuilder();
-          }
-
-          if (btn.valor.startsWith('http')) {
-            row.addComponents(
-              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor)
-            );
-          } else {
-            row.addComponents(
-              new ButtonBuilder()
-                .setLabel(btn.label)
-                .setStyle(btn.style || ButtonStyle.Primary)
-                .setCustomId(`msg_${i}`)
-            );
-          }
-        });
-
-        if (row.components.length > 0) rows.push(row);
-
-        await interaction.channel.send({
-          embeds: session.embeds.map(e => montarEmbed(e)),
-          components: rows
-        });
-
-        return interaction.reply({ content: 'Enviado!', ephemeral: true });
-      }
-
-      return interaction.update({
-        embeds: [montarEmbed(session.embeds[session.atual])],
-        components: gerarMenu(interaction.user.id)
-      });
-    }
+  return interaction.update({
+    embeds: [montarEmbed(session.embeds[session.atual])],
+    components: gerarMenu(interaction.user.id)
+  });
+}
 
     // MODAL
     if (interaction.isModalSubmit()) {
