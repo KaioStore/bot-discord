@@ -223,3 +223,50 @@ function montarEmbed(data) {
 
   return embed;
 }
+
+// ✅ AGORA FORA (CORRETO)
+function gerarMenu(userId) {
+  const session = embedSessions[userId];
+
+  return [
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('select')
+        .setPlaceholder('Selecionar embed')
+        .addOptions(
+          session.embeds.map((e,i)=>({
+            label:`Embed ${i+1}`,
+            value:`${i}`
+          }))
+        )
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
+function gerarEditor() {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
+// ===== WEB =====
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send('Bot online');
+});
+
+app.listen(PORT, () => {
+  console.log('Servidor rodando');
+});
+
+// ===== LOGIN =====
+client.login(TOKEN);
