@@ -1,3 +1,4 @@
+// 🔥 NÃO TRATADOS
 process.on('uncaughtException', (err) => {
   console.error('Erro não tratado:', err);
 });
@@ -14,7 +15,6 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  StringSelectMenuBuilder,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle
@@ -30,13 +30,12 @@ app.use(cors());
 // ===== CONFIG =====
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
-const SITE = 'https://kaio-rank.vercel.app';
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ===== CORES DOS BOTÕES =====
+// ===== CORES =====
 const styleMap = {
   Primary: ButtonStyle.Primary,
   Success: ButtonStyle.Success,
@@ -73,12 +72,12 @@ client.on('interactionCreate', async (interaction) => {
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
 
+    // ===== SLASH =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
         embedSessions[interaction.user.id] = {
           embeds: [{}],
-          atual: 0,
           buttons: []
         };
 
@@ -89,7 +88,7 @@ client.on('interactionCreate', async (interaction) => {
               .setTitle('Abrir painel embed')
               .setDescription('Use os botões abaixo')
           ],
-          components: gerarMenu(interaction.user.id),
+          components: gerarMenu(),
           ephemeral: true
         });
       }
@@ -108,11 +107,12 @@ client.on('interactionCreate', async (interaction) => {
         const embed = new EmbedBuilder()
           .setColor('#2b2d31')
           .setTitle('**Avaliação Recebida! 🖤**')
-          .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
           .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
           .setDescription(`**•** Avaliação: ${texto}
 **•** Total: ${db.total}
-**•** Pedido: ${db.pedidos}`);
+**•** Pedido: ${db.pedidos}
+
+Esta avaliação foi registrada de forma **anônima**, prezamos pela segurança dos **clientes!**`);
 
         const canal = client.channels.cache.get(CANAL_AVALIACOES);
         if (canal) canal.send({ embeds: [embed] });
@@ -124,8 +124,6 @@ client.on('interactionCreate', async (interaction) => {
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
-    let atual = session.embeds[session.atual] || {};
-
     if (interaction.isButton()) {
 
       const id = interaction.customId;
@@ -134,7 +132,11 @@ client.on('interactionCreate', async (interaction) => {
         const btn = session.buttons[Number(id.split('_')[1])];
 
         return interaction.reply({
-          embeds: [new EmbedBuilder().setColor('#2b2d31').setDescription(`📩 ${btn.valor}`)],
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#2b2d31')
+              .setDescription(`${btn.valor}`)
+          ],
           ephemeral: true
         });
       }
@@ -214,23 +216,25 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-// ===== FUNÇÕES =====
+// ===== FUNÇÃO EMBED =====
 function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
 
   embed.setDescription(data.description || '⠀');
 
+  if (data.image) embed.setImage(data.image); // ✅ agora funciona normal
+
   if (data.author) {
     embed.setAuthor({
       name: data.author.nome || '⠀',
-      iconURL: data.author.icon || undefined,
-      url: data.author.url || undefined
+      iconURL: data.author.icon || undefined
     });
   }
 
   return embed;
 }
 
+// ===== MENU =====
 function gerarMenu() {
   return [
     new ActionRowBuilder().addComponents(
