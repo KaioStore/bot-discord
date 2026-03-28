@@ -345,9 +345,12 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         if (interaction.customId === 'desc') atual.description = valor || '⠀';
 
         if (interaction.customId === 'imagem') {
-          if (!valor) delete atual.image;
-          else atual.image = { url: valor };
-        }
+  if (!valor || !valor.startsWith('http')) {
+    delete atual.image;
+  } else {
+    atual.image = valor;
+  }
+}
 
         return interaction.update({
           embeds: [montarEmbed(atual)],
@@ -368,7 +371,7 @@ function montarEmbed(data) {
   if (data.title) embed.setTitle(data.title);
   embed.setDescription(data.description || '⠀');
 
-  if (data.image?.url) embed.setImage(data.image.url);
+  if (data.image) embed.setImage(data.image);
 
   if (data.author) {
     embed.setAuthor({
