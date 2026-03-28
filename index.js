@@ -27,7 +27,6 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
-// ===== CONFIG =====
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
 const SITE = 'https://kaio-rank.vercel.app';
@@ -48,7 +47,7 @@ function salvar() {
   fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
 }
 
-// ===== EMBED SYSTEM =====
+// ===== EMBED =====
 const embedSessions = {};
 
 client.on('ready', () => {
@@ -60,6 +59,7 @@ client.on('interactionCreate', async (interaction) => {
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
 
+    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
@@ -167,12 +167,19 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
+    // ===== SISTEMA EMBED =====
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
     let atual = session.embeds[session.atual];
-    if (!atual) return;
 
+    // 🔥 CORREÇÃO PRINCIPAL
+    if (!atual) {
+      session.embeds[session.atual] = {};
+      atual = session.embeds[session.atual];
+    }
+
+    // SELECT
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -182,24 +189,10 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
+    // BOTÕES
     if (interaction.isButton()) {
 
       const id = interaction.customId;
-
-      // 🔥 ADICIONAR LINHA
-      if (id === 'add_linha') {
-        session.embeds.push({
-          description: '⠀',
-          image: 'https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png'
-        });
-
-        session.atual = session.embeds.length - 1;
-
-        return interaction.update({
-          embeds: [montarEmbed(session.embeds[session.atual])],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
 
       if (['titulo','desc','imagem','thumb','autor','autor_url'].includes(id)) {
 
@@ -228,6 +221,19 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.showModal(modal);
       }
 
+      if (id === 'add_embed') {
+        session.embeds.push({});
+        session.atual = session.embeds.length - 1;
+      }
+
+      if (id === 'add_linha') {
+        session.embeds.push({
+          description: '⠀',
+          image: 'https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png'
+        });
+        session.atual = session.embeds.length - 1;
+      }
+
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
@@ -243,11 +249,6 @@ client.on('interactionCreate', async (interaction) => {
         );
 
         return interaction.showModal(modal);
-      }
-
-      if (id === 'add_embed') {
-        session.embeds.push({});
-        session.atual = session.embeds.length - 1;
       }
 
       if (id === 'delete') {
@@ -309,6 +310,7 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
+    // MODAL
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'criar_botao') {
