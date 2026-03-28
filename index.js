@@ -239,7 +239,9 @@ client.on('interactionCreate', async (interaction) => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(id === 'autor' ? 'Nome | URL da imagem | URL clicável' : 'Digite')
+              .setLabel(id === 'autor'
+                ? 'Nome | URL da imagem | URL clicável'
+                : 'Digite')
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
               .setValue(valorAtual)
           )
