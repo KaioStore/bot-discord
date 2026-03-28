@@ -27,7 +27,6 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
-// ===== CONFIG =====
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
 const SITE = 'https://kaio-rank.vercel.app';
@@ -88,7 +87,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ===== SALDO =====
       if (interaction.commandName === 'saldo') {
         const user = interaction.options.getUser('usuario') || interaction.user;
         const total = gastos[user.id] || 0;
@@ -105,7 +103,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ===== GASTAR =====
       if (interaction.commandName === 'gastar') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -118,7 +115,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: `Adicionado R$${valor} para ${user.username}`, ephemeral: true });
       }
 
-      // ===== REMOVER =====
       if (interaction.commandName === 'removergasto') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -132,7 +128,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, ephemeral: true });
       }
 
-      // ===== AVALIAR =====
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -159,11 +154,8 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply('Avaliação enviada.');
       }
 
-      // ===== RANK =====
       if (interaction.commandName === 'rank') {
-
-        const rankingArray = Object.entries(gastos)
-          .sort(([,a],[,b]) => b - a);
+        const rankingArray = Object.entries(gastos).sort(([,a],[,b]) => b - a);
 
         const embed = new EmbedBuilder()
           .setColor('#2b2d31')
@@ -171,9 +163,7 @@ client.on('interactionCreate', async (interaction) => {
           .setDescription(
             rankingArray.map(([id, total], i) => {
               const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-
-              return `${medal} [<@${id}>](${SITE}/user/${id})
-💰 Total: R$${total}`;
+              return `${medal} [<@${id}>](${SITE}/user/${id})\n💰 Total: R$${total}`;
             }).join('\n\n')
           );
 
@@ -181,14 +171,11 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
-    // ===== EMBED SYSTEM =====
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
     let atual = session.embeds[session.atual];
-    if (!atual) return;
 
-    // SELECT
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -198,15 +185,11 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // BOTÕES
     if (interaction.isButton()) {
 
       const id = interaction.customId;
 
-      // 🔥 MODAL COM VALOR SALVO
-      if (['titulo','desc','imagem','thumb','autor','autor_url'].includes(id)) {
-
-        const atual = session.embeds[session.atual] || {};
+      if (['titulo','desc','imagem','thumb','autor','autor_url','autor_icon'].includes(id)) {
 
         let valorAtual = '';
         if (id === 'titulo') valorAtual = atual.title || '';
@@ -215,6 +198,7 @@ client.on('interactionCreate', async (interaction) => {
         if (id === 'thumb') valorAtual = atual.thumbnail || '';
         if (id === 'autor') valorAtual = atual.author?.nome || '';
         if (id === 'autor_url') valorAtual = atual.author?.url || '';
+        if (id === 'autor_icon') valorAtual = atual.author?.icon || '';
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -224,7 +208,11 @@ client.on('interactionCreate', async (interaction) => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(id === 'autor_url' ? 'Link do autor' : 'Digite')
+              .setLabel(
+                id === 'autor_url' ? 'Link do autor' :
+                id === 'autor_icon' ? 'Imagem do autor (URL)' :
+                'Digite'
+              )
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
               .setValue(valorAtual)
           )
@@ -233,7 +221,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.showModal(modal);
       }
 
-      // ADICIONAR BOTÃO
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
@@ -251,32 +238,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.showModal(modal);
       }
 
-      if (id === 'add_embed') {
-        session.embeds.push({});
-        session.atual = session.embeds.length - 1;
-      }
-
-      if (id === 'delete') {
-        session.embeds.splice(session.atual, 1);
-        if (session.embeds.length === 0) session.embeds.push({});
-        session.atual = 0;
-      }
-
-      if (id === 'edit') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
-      if (id === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
-      // ENVIAR
       if (id === 'enviar') {
 
         const rows = [];
@@ -309,14 +270,8 @@ client.on('interactionCreate', async (interaction) => {
 
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
-
-      return interaction.update({
-        embeds: [montarEmbed(session.embeds[session.atual])],
-        components: gerarMenu(interaction.user.id)
-      });
     }
 
-    // MODAL
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'criar_botao') {
@@ -345,6 +300,11 @@ client.on('interactionCreate', async (interaction) => {
         atual.author.url = valor;
       }
 
+      if (interaction.customId === 'autor_icon') {
+        if (!atual.author) atual.author = {};
+        atual.author.icon = valor;
+      }
+
       return interaction.update({
         embeds: [montarEmbed(atual)],
         components: gerarEditor()
@@ -369,7 +329,8 @@ function montarEmbed(data) {
   if (data.author) {
     embed.setAuthor({
       name: data.author.nome || '⠀',
-      url: data.author.url || undefined
+      url: data.author.url || undefined,
+      iconURL: data.author.icon || undefined
     });
   }
 
@@ -392,9 +353,6 @@ function gerarMenu(userId) {
         )
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('delete').setLabel('Deletar').setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar Botão').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
@@ -412,12 +370,11 @@ function gerarEditor() {
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('autor_url').setLabel('Link Autor').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder().setCustomId('autor_icon').setLabel('Imagem Autor').setStyle(ButtonStyle.Secondary)
     )
   ];
 }
 
-// ===== WEB =====
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
@@ -428,5 +385,4 @@ app.listen(PORT, () => {
   console.log('Servidor rodando');
 });
 
-// ===== LOGIN =====
 client.login(TOKEN);
