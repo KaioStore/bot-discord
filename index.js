@@ -196,26 +196,13 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton()) {
       const id = interaction.customId;
 
-      if (id.startsWith('msg_')) {
-        const index = Number(id.split('_')[1]);
-        const btn = session.buttons[index];
-        if (!btn) return;
-
-        await interaction.deferUpdate();
-
-        return interaction.followUp({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#2b2d31')
-              .setDescription(btn.valor)
-          ],
-          ephemeral: true
-        });
-      }
-
       if (['titulo','desc','imagem','thumb'].includes(id)) {
 
-        let valorAtual = atual[id] || '';
+        let valorAtual = '';
+        if (id === 'titulo') valorAtual = atual.title || '';
+        if (id === 'desc') valorAtual = atual.description || '';
+        if (id === 'imagem') valorAtual = atual.image || '';
+        if (id === 'thumb') valorAtual = atual.thumbnail || '';
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -225,68 +212,14 @@ client.on('interactionCreate', async (interaction) => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel('Digite (deixe vazio para manter)')
-              .setRequired(false) // 🔥 NÃO OBRIGATÓRIO
+              .setLabel('Digite (opcional)')
+              .setRequired(false) // ✅ NÃO OBRIGATÓRIO
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
               .setValue(valorAtual)
           )
         );
 
         return interaction.showModal(modal);
-      }
-
-      if (id === 'add_button') {
-        const modal = new ModalBuilder()
-          .setCustomId('criar_botao')
-          .setTitle('Botão');
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('label').setLabel('Nome').setRequired(false).setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem/Link').setRequired(false).setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('cor').setLabel('Cor').setRequired(false).setStyle(TextInputStyle.Short)
-          )
-        );
-
-        return interaction.showModal(modal);
-      }
-
-      if (id === 'add_embed') {
-        session.embeds.push({});
-        session.atual = session.embeds.length - 1;
-      }
-
-      if (id === 'delete') {
-        session.embeds.splice(session.atual, 1);
-        if (session.embeds.length === 0) session.embeds.push({});
-        session.atual = 0;
-      }
-
-      if (id === 'edit') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
-      if (id === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
-      if (id === 'enviar') {
-
-        await interaction.channel.send({
-          embeds: session.embeds.map(e => montarEmbed(e))
-        });
-
-        return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
 
       return interaction.update({
@@ -300,16 +233,16 @@ client.on('interactionCreate', async (interaction) => {
       if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
         const valor = interaction.fields.getTextInputValue('input');
 
-        if (valor !== '') { // 🔥 NÃO APAGA SE VAZIO
-          atual[interaction.customId] = valor;
-        }
+        if (interaction.customId === 'titulo') atual.title = valor || null;
+        if (interaction.customId === 'desc') atual.description = valor || null;
+        if (interaction.customId === 'imagem') atual.image = valor || null;
+        if (interaction.customId === 'thumb') atual.thumbnail = valor || null;
 
         return interaction.update({
           embeds: [montarEmbed(atual)],
           components: gerarEditor()
         });
       }
-
     }
 
   } catch (err) {
@@ -327,7 +260,44 @@ function montarEmbed(data) {
   if (data.image && data.image.startsWith('http')) embed.setImage(data.image);
   if (data.thumbnail && data.thumbnail.startsWith('http')) embed.setThumbnail(data.thumbnail);
 
+  if (data.author) {
+    embed.setAuthor({
+      name: data.author.nome || '⠀',
+      iconURL: data.author.icon || undefined
+    });
+  }
+
   return embed;
 }
 
-// ===== RESTO IGUAL =====
+function gerarMenu(userId) {
+  const session = embedSessions[userId];
+
+  return [
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('select')
+        .setPlaceholder('Selecionar embed')
+        .addOptions(
+          session.embeds.map((e,i)=>({
+            label:`Embed ${i+1}`,
+            value:`${i}`
+          }))
+        )
+    )
+  ];
+}
+
+// ===== WEB =====
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send('Bot online');
+});
+
+app.listen(PORT, () => {
+  console.log('Servidor rodando');
+});
+
+// ===== LOGIN =====
+client.login(TOKEN);
