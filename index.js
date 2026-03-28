@@ -195,56 +195,78 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // BOTÕES
-    if (interaction.isButton()) {
-      const id = interaction.customId;
+    // ===== BOTÕES =====
+if (interaction.isButton()) {
+  const id = interaction.customId;
 
-      // ===== EDITAR CAMPOS (CORRIGIDO BUG) =====
-      if (['titulo','desc','imagem','thumb'].includes(id)) {
+  // ===== BOTÃO RESPOSTA (🔥 CORRIGIDO) =====
+  if (id.startsWith('msg_')) {
+    const index = Number(id.split('_')[1]);
+    const btn = session.buttons[index];
 
-        let valorAtual = '';
-        if (id === 'titulo') valorAtual = atual.title || '';
-        if (id === 'desc') valorAtual = atual.description || '';
-        if (id === 'imagem') valorAtual = atual.image || '';
-        if (id === 'thumb') valorAtual = atual.thumbnail || '';
+    if (!btn) return;
 
-        const modal = new ModalBuilder()
-          .setCustomId(id)
-          .setTitle('Editar');
+    await interaction.deferUpdate();
 
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('input')
-              .setLabel('Digite')
-              .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
-              .setValue(valorAtual)
-          )
-        );
+    return interaction.followUp({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#2b2d31')
+          .setDescription(`${btn.valor}`)
+      ],
+      ephemeral: true
+    });
+  }
 
-        return interaction.showModal(modal);
-      }
+  // ===== EDITAR CAMPOS =====
+  if (['titulo','desc','imagem','thumb'].includes(id)) {
 
-      // ===== AUTOR COMPLETO =====
-      if (id === 'autor') {
-        const modal = new ModalBuilder()
-          .setCustomId('autor_full')
-          .setTitle('Editar Autor');
+    let valorAtual = '';
+    if (id === 'titulo') valorAtual = atual.title || '';
+    if (id === 'desc') valorAtual = atual.description || '';
+    if (id === 'imagem') valorAtual = atual.image || '';
+    if (id === 'thumb') valorAtual = atual.thumbnail || '';
 
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('nome').setLabel('Nome').setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('icon').setLabel('Imagem URL').setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('url').setLabel('URL clicável').setStyle(TextInputStyle.Short)
-          )
-        );
+    const modal = new ModalBuilder()
+      .setCustomId(id)
+      .setTitle('Editar');
 
-        return interaction.showModal(modal);
-      }
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('input')
+          .setLabel('Digite')
+          .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
+          .setValue(valorAtual)
+      )
+    );
+
+    return interaction.showModal(modal);
+  }
+
+  // ===== AUTOR =====
+  if (id === 'autor') {
+    const modal = new ModalBuilder()
+      .setCustomId('autor_full')
+      .setTitle('Editar Autor');
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId('nome').setLabel('Nome').setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId('icon').setLabel('Imagem URL').setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId('url').setLabel('URL clicável').setStyle(TextInputStyle.Short)
+      )
+    );
+
+    return interaction.showModal(modal);
+  }
+
+  // ===== RESTO (SEU CÓDIGO NORMAL) =====
+}
 
       // ===== ADICIONAR BOTÃO =====
       if (id === 'add_button') {
@@ -351,25 +373,20 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
-      const valor = interaction.fields.getTextInputValue('input') || '⠀';
+      if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
 
-      if (interaction.customId === 'titulo') atual.title = valor;
-      if (interaction.customId === 'desc') atual.description = valor;
-      if (interaction.customId === 'imagem') atual.image = valor;
-      if (interaction.customId === 'thumb') atual.thumbnail = valor;
+  const valor = interaction.fields.getTextInputValue('input') || '⠀';
 
-      if (interaction.customId === 'autor_full') {
-        atual.author = {
-          nome: interaction.fields.getTextInputValue('nome'),
-          icon: interaction.fields.getTextInputValue('icon'),
-          url: interaction.fields.getTextInputValue('url')
-        };
+  if (interaction.customId === 'titulo') atual.title = valor;
+  if (interaction.customId === 'desc') atual.description = valor;
+  if (interaction.customId === 'imagem') atual.image = valor;
+  if (interaction.customId === 'thumb') atual.thumbnail = valor;
 
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
+  return interaction.update({
+    embeds: [montarEmbed(atual)],
+    components: gerarEditor()
+  });
+}
     }
 
   } catch (err) {
