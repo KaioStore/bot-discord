@@ -224,7 +224,7 @@ function montarEmbed(data) {
   return embed;
 }
 
-// ✅ FORA DO montarEmbed (CORRETO)
+// ✅ AGORA FORA (CORRETO)
 function gerarMenu(userId) {
   const session = embedSessions[userId];
 
@@ -257,7 +257,7 @@ function gerarEditor() {
   ];
 }
 
-// ===== WEB =====
+// WEB
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
