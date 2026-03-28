@@ -144,7 +144,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
-      // ===== BOTÃO MSG =====
       if (id.startsWith('msg_')) {
         const index = Number(id.split('_')[1]);
         const btn = session.buttons[index];
@@ -183,7 +182,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.showModal(modal);
       }
 
-      // ===== AUTOR (FIX)
+      // ===== AUTOR
       if (id === 'autor') {
         const modal = new ModalBuilder()
           .setCustomId('autor_full')
@@ -210,7 +209,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.showModal(modal);
       }
 
-      // ===== ENVIAR (FIX)
+      // ===== ENVIAR
       if (id === 'enviar') {
         const rows = [];
         let row = new ActionRowBuilder();
@@ -245,14 +244,14 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
 
-      // ===== EDITAR CAMPOS
+      // ===== EDITAR CAMPOS (FIX IMAGE BUG)
       if (['titulo','desc','imagem','thumb'].includes(id)) {
 
         let valorAtual = '';
         if (id === 'titulo') valorAtual = atual.title || '';
         if (id === 'desc') valorAtual = atual.description || '';
-        if (id === 'imagem') valorAtual = atual.image || '';
-        if (id === 'thumb') valorAtual = atual.thumbnail || '';
+        if (id === 'imagem') valorAtual = atual.image?.url || atual.image || '';
+        if (id === 'thumb') valorAtual = atual.thumbnail?.url || atual.thumbnail || '';
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -310,7 +309,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     if (interaction.isModalSubmit()) {
 
-      // ===== AUTOR FIX FINAL
       if (interaction.customId === 'autor_full') {
         const nome = interaction.fields.getTextInputValue('nome');
         const icon = interaction.fields.getTextInputValue('icon');
@@ -344,22 +342,21 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
-      // ===== CAMPOS FIX
+      // ===== FIX FINAL IMAGE
       if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
         const valor = interaction.fields.getTextInputValue('input');
 
         if (interaction.customId === 'titulo') atual.title = valor || null;
-
         if (interaction.customId === 'desc') atual.description = valor || '⠀';
 
         if (interaction.customId === 'imagem') {
           if (!valor) delete atual.image;
-          else atual.image = valor;
+          else atual.image = { url: valor };
         }
 
         if (interaction.customId === 'thumb') {
           if (!valor) delete atual.thumbnail;
-          else atual.thumbnail = valor;
+          else atual.thumbnail = { url: valor };
         }
 
         return interaction.update({
@@ -381,8 +378,13 @@ function montarEmbed(data) {
   if (data.title) embed.setTitle(data.title);
   embed.setDescription(data.description || '⠀');
 
-  if (data.image) embed.setImage(data.image);
-  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
+  if (data.image) {
+    embed.setImage(typeof data.image === 'string' ? data.image : data.image.url);
+  }
+
+  if (data.thumbnail) {
+    embed.setThumbnail(typeof data.thumbnail === 'string' ? data.thumbnail : data.thumbnail.url);
+  }
 
   if (data.author) {
     embed.setAuthor({
