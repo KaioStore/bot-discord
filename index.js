@@ -323,7 +323,7 @@ client.on('interactionCreate', async (interaction) => {
         row.addComponents(
           new ButtonBuilder()
             .setLabel(btn.label)
-            .setStyle(styleMap[btn.style] || ButtonStyle.Primary)
+            .setStyle(btn.style || ButtonStyle.Primary)
             .setCustomId(`msg_${i}`)
         );
       }
