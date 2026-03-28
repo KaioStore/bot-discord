@@ -178,8 +178,17 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
-    const session = embedSessions[interaction.user.id];
-    if (!session) return;
+  const session = embedSessions[interaction.user.id];
+
+if (!session) {
+  if (interaction.isButton() || interaction.isStringSelectMenu()) {
+    return interaction.reply({
+      content: '❌ Sessão expirada. Use /embed novamente.',
+      ephemeral: true
+    });
+  }
+  return;
+}
 
     let atual = session.embeds[session.atual];
     if (!atual) return;
