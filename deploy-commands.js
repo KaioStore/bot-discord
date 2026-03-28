@@ -220,16 +220,30 @@ Esta avaliação foi registrada de forma **anônima**, prezamos pela segurança 
 function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
 
-  embed.setDescription(data.description || '⠀');
+  function montarEmbed(data) {
+  const embed = new EmbedBuilder().setColor('#2b2d31');
 
-  if (data.image) embed.setImage(data.image); // ✅ agora funciona normal
+  if (data.title) embed.setTitle(data.title);
+
+  // 🔥 CORREÇÃO ESTILO RIO BOT
+  if (data.description && data.description.length > 1) {
+    embed.setDescription(data.description);
+  } else {
+    embed.setDescription(' '); // espaço normal, NÃO invisível
+  }
+
+  if (data.image) embed.setImage(data.image);
+  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
 
   if (data.author) {
     embed.setAuthor({
-      name: data.author.nome || '⠀',
+      name: data.author.nome || ' ',
       iconURL: data.author.icon || undefined
     });
   }
+
+  // 🔥 FORÇA LAYOUT COMPLETO IGUAL BOT GRANDE
+  embed.setFooter({ text: ' ' });
 
   return embed;
 }
