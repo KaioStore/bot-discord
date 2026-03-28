@@ -144,6 +144,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      // ===== BOTÃO MSG
       if (id.startsWith('msg_')) {
         const index = Number(id.split('_')[1]);
         const btn = session.buttons[index];
@@ -182,7 +183,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.showModal(modal);
       }
 
-      // ===== AUTOR (FIX NÃO SUMIR)
+      // ===== AUTOR
       if (id === 'autor') {
         const modal = new ModalBuilder()
           .setCustomId('autor_full')
@@ -244,14 +245,14 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
 
-      // ===== EDITAR CAMPOS (FIX FINAL)
+      // ===== EDITAR CAMPOS
       if (['titulo','desc','imagem','thumb'].includes(id)) {
 
         let valorAtual = '';
         if (id === 'titulo') valorAtual = atual.title || '';
         if (id === 'desc') valorAtual = atual.description || '';
-        if (id === 'imagem') valorAtual = atual.image || '';
-        if (id === 'thumb') valorAtual = atual.thumbnail || '';
+        if (id === 'imagem') valorAtual = atual.image?.url || '';
+        if (id === 'thumb') valorAtual = atual.thumbnail?.url || '';
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -307,20 +308,17 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
     }
 
+    // ===== MODAL
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'autor_full') {
         const nome = interaction.fields.getTextInputValue('nome');
         const icon = interaction.fields.getTextInputValue('icon');
 
-        if (!nome && !icon) {
-          delete atual.author;
-        } else {
-          atual.author = {
-            nome: nome || '⠀',
-            icon: icon || undefined
-          };
-        }
+        atual.author = {
+          nome: nome || '⠀',
+          icon: icon || undefined
+        };
 
         return interaction.update({
           embeds: [montarEmbed(atual)],
@@ -342,39 +340,27 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
-      // 🔥 FIX FINAL IMAGEM
       if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
-  const valor = interaction.fields.getTextInputValue('input')?.trim();
+        const valor = interaction.fields.getTextInputValue('input')?.trim();
 
-  if (interaction.customId === 'titulo') {
-    atual.title = valor || null;
-  }
+        if (interaction.customId === 'titulo') atual.title = valor || null;
+        if (interaction.customId === 'desc') atual.description = valor || '⠀';
 
-  if (interaction.customId === 'desc') {
-    atual.description = valor || '⠀';
-  }
+        if (interaction.customId === 'imagem') {
+          if (!valor) delete atual.image;
+          else atual.image = { url: valor };
+        }
 
-  if (interaction.customId === 'imagem') {
-    if (!valor || !valor.startsWith('http')) {
-      delete atual.image;
-    } else {
-      atual.image = { url: valor };
-    }
-  }
+        if (interaction.customId === 'thumb') {
+          if (!valor) delete atual.thumbnail;
+          else atual.thumbnail = { url: valor };
+        }
 
-  if (interaction.customId === 'thumb') {
-    if (!valor || !valor.startsWith('http')) {
-      delete atual.thumbnail;
-    } else {
-      atual.thumbnail = { url: valor };
-    }
-  }
-
-  return interaction.update({
-    embeds: [montarEmbed(atual)],
-    components: gerarEditor()
-  });
-}
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
     }
 
   } catch (err) {
