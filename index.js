@@ -33,8 +33,20 @@ const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
 const SITE = 'https://kaio-rank.vercel.app';
 
+// 🔥 VERIFICA TOKEN
+if (!TOKEN) {
+  console.error('❌ TOKEN NÃO DEFINIDO');
+  process.exit(1);
+}
+
+// ===== CLIENT =====
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 });
 
 // ===== CORES BOTÕES =====
@@ -49,12 +61,21 @@ const styleMap = {
 let db = { total: 419, pedidos: 450 };
 let gastos = {};
 
-if (fs.existsSync('./db.json')) {
-  db = JSON.parse(fs.readFileSync('./db.json', 'utf8'));
+// 🔥 PROTEÇÃO JSON
+try {
+  if (fs.existsSync('./db.json')) {
+    db = JSON.parse(fs.readFileSync('./db.json', 'utf8'));
+  }
+} catch (err) {
+  console.error('Erro db.json:', err);
 }
 
-if (fs.existsSync('./gastos.json')) {
-  gastos = JSON.parse(fs.readFileSync('./gastos.json', 'utf8'));
+try {
+  if (fs.existsSync('./gastos.json')) {
+    gastos = JSON.parse(fs.readFileSync('./gastos.json', 'utf8'));
+  }
+} catch (err) {
+  console.error('Erro gastos.json:', err);
 }
 
 function salvar() {
@@ -156,7 +177,8 @@ client.on('interactionCreate', async (interaction) => {
 **•** **Total de avaliações:** ${db.total}
 **•** **Pedido:** ${db.pedidos}
 
-Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`);
+Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`)
+          .setFooter({ text: '‎' }); // 🔥 força render
 
         const canal = client.channels.cache.get(CANAL_AVALIACOES);
         if (canal) canal.send({ embeds: [embed] });
@@ -175,7 +197,8 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
               const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
               return `${medal} <@${id}>\n💰 R$${total}`;
             }).join('\n\n')
-          );
+          )
+          .setFooter({ text: '‎' });
 
         return interaction.reply({ embeds: [embed] });
       }
@@ -211,6 +234,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
             new EmbedBuilder()
               .setColor('#2b2d31')
               .setDescription(btn.valor)
+              .setFooter({ text: '‎' })
           ],
           ephemeral: true
         });
@@ -401,11 +425,10 @@ function montarEmbed(data) {
 
   if (data.title) embed.setTitle(data.title);
 
-  // 🔥 CORREÇÃO DO BUG DA IMAGEM
   if (data.description && data.description.length > 1) {
     embed.setDescription(data.description);
   } else {
-    embed.setDescription(' '); // espaço normal (resolve bug)
+    embed.setDescription(' ');
   }
 
   if (data.image) embed.setImage(data.image);
@@ -418,7 +441,6 @@ function montarEmbed(data) {
     });
   }
 
-  // 🔥 força layout completo igual bot grande
   embed.setFooter({ text: '‎' });
 
   return embed;
@@ -476,4 +498,6 @@ app.listen(PORT, () => {
 });
 
 // ===== LOGIN =====
-client.login(TOKEN);
+client.login(TOKEN).catch(err => {
+  console.error('Erro ao logar:', err);
+});
