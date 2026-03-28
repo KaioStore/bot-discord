@@ -40,13 +40,8 @@ const client = new Client({
 let db = { total: 419, pedidos: 450 };
 let gastos = {};
 
-if (fs.existsSync('./db.json')) {
-  db = JSON.parse(fs.readFileSync('./db.json', 'utf8'));
-}
-
-if (fs.existsSync('./gastos.json')) {
-  gastos = JSON.parse(fs.readFileSync('./gastos.json', 'utf8'));
-}
+if (fs.existsSync('./db.json')) db = JSON.parse(fs.readFileSync('./db.json', 'utf8'));
+if (fs.existsSync('./gastos.json')) gastos = JSON.parse(fs.readFileSync('./gastos.json', 'utf8'));
 
 function salvar() {
   fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
@@ -60,13 +55,11 @@ client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
 });
 
-// ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
   try {
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
 
-    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
@@ -88,7 +81,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ===== SALDO =====
       if (interaction.commandName === 'saldo') {
         const user = interaction.options.getUser('usuario') || interaction.user;
         const total = gastos[user.id] || 0;
@@ -105,7 +97,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ===== GASTAR =====
       if (interaction.commandName === 'gastar') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -118,7 +109,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: `Adicionado R$${valor} para ${user.username}`, ephemeral: true });
       }
 
-      // ===== REMOVER =====
       if (interaction.commandName === 'removergasto') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -132,7 +122,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ content: `Removido R$${valor} de ${user.username}`, ephemeral: true });
       }
 
-      // ===== AVALIAR =====
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
 
@@ -159,7 +148,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply('Avaliação enviada.');
       }
 
-      // ===== RANK =====
       if (interaction.commandName === 'rank') {
 
         const rankingArray = Object.entries(gastos)
@@ -171,9 +159,7 @@ client.on('interactionCreate', async (interaction) => {
           .setDescription(
             rankingArray.map(([id, total], i) => {
               const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-
-              return `${medal} [<@${id}>](${SITE}/user/${id})
-💰 Total: R$${total}`;
+              return `${medal} [<@${id}>](${SITE}/user/${id})\n💰 Total: R$${total}`;
             }).join('\n\n')
           );
 
@@ -181,14 +167,12 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
-    // ===== EMBED SYSTEM =====
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
     let atual = session.embeds[session.atual];
     if (!atual) return;
 
-    // SELECT
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -198,15 +182,26 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // BOTÕES
     if (interaction.isButton()) {
 
       const id = interaction.customId;
 
-      // 🔥 MODAL COM VALOR SALVO
-      if (['titulo','desc','imagem','thumb','autor','autor_url'].includes(id)) {
+      // 🔥 ADICIONAR LINHA
+      if (id === 'add_linha') {
+        session.embeds.push({
+          description: '⠀',
+          image: 'https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png'
+        });
 
-        const atual = session.embeds[session.atual] || {};
+        session.atual = session.embeds.length - 1;
+
+        return interaction.update({
+          embeds: [montarEmbed(session.embeds[session.atual])],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
+      if (['titulo','desc','imagem','thumb','autor','autor_url'].includes(id)) {
 
         let valorAtual = '';
         if (id === 'titulo') valorAtual = atual.title || '';
@@ -224,7 +219,7 @@ client.on('interactionCreate', async (interaction) => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(id === 'autor_url' ? 'Link do autor' : 'Digite')
+              .setLabel('Digite')
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
               .setValue(valorAtual)
           )
@@ -233,7 +228,6 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.showModal(modal);
       }
 
-      // ADICIONAR BOTÃO
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
@@ -276,7 +270,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ENVIAR
       if (id === 'enviar') {
 
         const rows = [];
@@ -316,7 +309,6 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // MODAL
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'criar_botao') {
@@ -393,6 +385,7 @@ function gerarMenu(userId) {
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('add_linha').setLabel('Adicionar Linha').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('delete').setLabel('Deletar').setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar Botão').setStyle(ButtonStyle.Primary),
