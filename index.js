@@ -423,25 +423,32 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
 
+  // título
   if (data.title) embed.setTitle(data.title);
 
-  if (data.description && data.description.length > 1) {
-    embed.setDescription(data.description);
-  } else {
-    embed.setDescription(' ');
+  // descrição (NUNCA vazia)
+  embed.setDescription(data.description?.trim() ? data.description : '\u200B');
+
+  // imagem
+  if (data.image && data.image.startsWith('http')) {
+    embed.setImage(data.image);
   }
 
-  if (data.image) embed.setImage(data.image);
-  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
+  // thumbnail (opcional)
+  if (data.thumbnail && data.thumbnail.startsWith('http')) {
+    embed.setThumbnail(data.thumbnail);
+  }
 
+  // autor
   if (data.author) {
     embed.setAuthor({
-      name: data.author.nome || ' ',
+      name: data.author.nome || '\u200B',
       iconURL: data.author.icon || undefined
     });
   }
 
-  embed.setFooter({ text: '‎' });
+  // footer SEM BUG
+  embed.setFooter({ text: '\u200B' });
 
   return embed;
 }
