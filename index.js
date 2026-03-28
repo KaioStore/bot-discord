@@ -131,7 +131,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     let atual = session.embeds[session.atual];
     if (!atual) return;
 
-    // 🔥 SELECT (PÁGINAS)
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -144,7 +143,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
-      // ===== BOTÃO MSG =====
       if (id.startsWith('msg_')) {
         const index = Number(id.split('_')[1]);
         const btn = session.buttons[index];
@@ -162,9 +160,82 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
-      // ===== MODAIS =====
-      if (['titulo','desc','imagem','thumb'].includes(id)) {
+      // ===== ADD BOTÃO
+      if (id === 'add_button') {
+        const modal = new ModalBuilder()
+          .setCustomId('criar_botao')
+          .setTitle('Botão');
 
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza, vermelho)').setStyle(TextInputStyle.Short)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      // ===== AUTOR
+      if (id === 'autor') {
+        const modal = new ModalBuilder()
+          .setCustomId('autor_full')
+          .setTitle('Autor');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('nome').setLabel('Nome').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setRequired(false)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      // ===== ENVIAR
+      if (id === 'enviar') {
+        const rows = [];
+        let row = new ActionRowBuilder();
+
+        session.buttons.forEach((btn, i) => {
+          if (i % 5 === 0 && i !== 0) {
+            rows.push(row);
+            row = new ActionRowBuilder();
+          }
+
+          if (btn.valor.startsWith('http')) {
+            row.addComponents(
+              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor)
+            );
+          } else {
+            row.addComponents(
+              new ButtonBuilder()
+                .setLabel(btn.label)
+                .setStyle(btn.style || ButtonStyle.Primary)
+                .setCustomId(`msg_${i}`)
+            );
+          }
+        });
+
+        if (row.components.length > 0) rows.push(row);
+
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e)),
+          components: rows
+        });
+
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
+      }
+
+      // ===== RESTO (SEU)
+      if (['titulo','desc','imagem','thumb'].includes(id)) {
         let valorAtual = '';
         if (id === 'titulo') valorAtual = atual.title || '';
         if (id === 'desc') valorAtual = atual.description || '';
@@ -226,6 +297,34 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     }
 
     if (interaction.isModalSubmit()) {
+
+      if (interaction.customId === 'autor_full') {
+        const nome = interaction.fields.getTextInputValue('nome');
+        const icon = interaction.fields.getTextInputValue('icon');
+
+        if (!atual.author) atual.author = {};
+        atual.author.nome = nome;
+        atual.author.icon = icon;
+
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
+      if (interaction.customId === 'criar_botao') {
+        const label = interaction.fields.getTextInputValue('label');
+        const valor = interaction.fields.getTextInputValue('valor');
+        const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
+
+        session.buttons.push({
+          label,
+          valor,
+          style: styleMap[cor] || ButtonStyle.Primary
+        });
+
+        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+      }
 
       if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
         const valor = interaction.fields.getTextInputValue('input');
