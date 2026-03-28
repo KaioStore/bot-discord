@@ -36,14 +36,6 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// ===== CORES =====
-const styleMap = {
-  azul: ButtonStyle.Primary,
-  verde: ButtonStyle.Success,
-  cinza: ButtonStyle.Secondary,
-  vermelho: ButtonStyle.Danger
-};
-
 // ===== BANCO =====
 let db = { total: 419, pedidos: 450 };
 let gastos = {};
@@ -70,7 +62,6 @@ client.on('ready', () => {
 
 client.on('interactionCreate', async (interaction) => {
   try {
-
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
 
     if (interaction.isChatInputCommand()) {
@@ -78,8 +69,7 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.commandName === 'embed') {
         embedSessions[interaction.user.id] = {
           embeds: [{}],
-          atual: 0,
-          buttons: []
+          atual: 0
         };
 
         return interaction.reply({
@@ -127,7 +117,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (!session) return;
 
     let atual = session.embeds[session.atual];
-    if (!atual) return;
 
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
@@ -141,6 +130,27 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      // 🔥 AÇÕES NOVAS
+      if (id === 'add') {
+        session.embeds.push({});
+        session.atual = session.embeds.length - 1;
+      }
+
+      if (id === 'delete') {
+        session.embeds.splice(session.atual, 1);
+        if (session.embeds.length === 0) session.embeds.push({});
+        session.atual = 0;
+      }
+
+      if (id === 'enviar') {
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e))
+        });
+
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
+      }
+
+      // 🔥 EDITAR CAMPOS
       if (['titulo','desc','imagem','thumb'].includes(id)) {
 
         let valorAtual = '';
@@ -157,13 +167,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(
-                id === 'imagem'
-                  ? 'URL da imagem'
-                  : id === 'thumb'
-                  ? 'URL do thumbnail'
-                  : 'Digite (opcional)'
-              )
+              .setLabel('Digite')
               .setRequired(false)
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
               .setValue(valorAtual)
@@ -172,31 +176,34 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         return interaction.showModal(modal);
       }
+
+      return interaction.update({
+        embeds: [montarEmbed(session.embeds[session.atual])],
+        components: gerarMenu(interaction.user.id)
+      });
     }
 
     if (interaction.isModalSubmit()) {
 
-      if (['titulo','desc','imagem','thumb'].includes(interaction.customId)) {
-        const valor = interaction.fields.getTextInputValue('input')?.trim();
+      const valor = interaction.fields.getTextInputValue('input')?.trim();
 
-        if (interaction.customId === 'titulo') atual.title = valor || null;
-        if (interaction.customId === 'desc') atual.description = valor || '⠀';
+      if (interaction.customId === 'titulo') atual.title = valor || null;
+      if (interaction.customId === 'desc') atual.description = valor || '⠀';
 
-        if (interaction.customId === 'imagem') {
-          if (!valor) delete atual.image;
-          else atual.image = { url: valor };
-        }
-
-        if (interaction.customId === 'thumb') {
-          if (!valor) delete atual.thumbnail;
-          else atual.thumbnail = { url: valor };
-        }
-
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
+      if (interaction.customId === 'imagem') {
+        if (!valor) delete atual.image;
+        else atual.image = { url: valor };
       }
+
+      if (interaction.customId === 'thumb') {
+        if (!valor) delete atual.thumbnail;
+        else atual.thumbnail = { url: valor };
+      }
+
+      return interaction.update({
+        embeds: [montarEmbed(atual)],
+        components: gerarEditor()
+      });
     }
 
   } catch (err) {
@@ -214,17 +221,9 @@ function montarEmbed(data) {
   if (data.image?.url) embed.setImage(data.image.url);
   if (data.thumbnail?.url) embed.setThumbnail(data.thumbnail.url);
 
-  if (data.author) {
-    embed.setAuthor({
-      name: data.author.nome || '⠀',
-      iconURL: data.author.icon || undefined
-    });
-  }
-
   return embed;
 }
 
-// ✅ AGORA FORA (CORRETO)
 function gerarMenu(userId) {
   const session = embedSessions[userId];
 
@@ -240,8 +239,12 @@ function gerarMenu(userId) {
           }))
         )
     ),
+
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('add').setLabel('Adicionar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('delete').setLabel('Deletar').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
 }
