@@ -228,7 +228,7 @@ client.on('interactionCreate', async (interaction) => {
         if (id === 'thumb') valorAtual = atual.thumbnail || '';
 
         if (id === 'autor') {
-          valorAtual = `${atual.author?.nome || ''} | ${atual.author?.icon || ''}`;
+          valorAtual = `${atual.author?.nome || ''} | ${atual.author?.icon || ''} | ${atual.author?.url || ''}`;
         }
 
         const modal = new ModalBuilder()
@@ -239,7 +239,7 @@ client.on('interactionCreate', async (interaction) => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(id === 'autor' ? 'Nome | URL da imagem' : 'Digite')
+              .setLabel(id === 'autor' ? 'Nome | URL da imagem | URL clicável' : 'Digite')
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
               .setValue(valorAtual)
           )
@@ -361,6 +361,7 @@ client.on('interactionCreate', async (interaction) => {
 
         atual.author.nome = partes[0]?.trim() || '';
         atual.author.icon = partes[1]?.trim() || '';
+        atual.author.url = partes[2]?.trim() || '';
       }
 
       return interaction.update({
@@ -387,63 +388,10 @@ function montarEmbed(data) {
   if (data.author) {
     embed.setAuthor({
       name: data.author.nome || '⠀',
-      iconURL: data.author.icon || undefined
+      iconURL: data.author.icon || undefined,
+      url: data.author.url || undefined
     });
   }
 
   return embed;
 }
-
-function gerarMenu(userId) {
-  const session = embedSessions[userId];
-
-  return [
-    new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('select')
-        .setPlaceholder('Selecionar embed')
-        .addOptions(
-          session.embeds.map((e,i)=>({
-            label:`Embed ${i+1}`,
-            value:`${i}`
-          }))
-        )
-    ),
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('delete').setLabel('Deletar').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar Botão').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
-    )
-  ];
-}
-
-function gerarEditor() {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumbnail').setStyle(ButtonStyle.Secondary)
-    ),
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('autor').setLabel('Autor (nome + imagem)').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
-    )
-  ];
-}
-
-// ===== WEB =====
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-  res.send('Bot online');
-});
-
-app.listen(PORT, () => {
-  console.log('Servidor rodando');
-});
-
-// ===== LOGIN =====
-client.login(TOKEN);
