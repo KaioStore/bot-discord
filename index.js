@@ -186,10 +186,7 @@ client.on('interactionCreate', async (interaction) => {
     if (!session) return;
 
     let atual = session.embeds[session.atual];
-    if (!atual) {
-      session.embeds[session.atual] = {};
-      atual = session.embeds[session.atual];
-    }
+    if (!atual) return;
 
     // SELECT
     if (interaction.isStringSelectMenu()) {
@@ -206,8 +203,18 @@ client.on('interactionCreate', async (interaction) => {
 
       const id = interaction.customId;
 
-      // MODAIS
+      // 🔥 MODAL COM VALOR SALVO
       if (['titulo','desc','imagem','thumb','autor','autor_url'].includes(id)) {
+
+        const atual = session.embeds[session.atual] || {};
+
+        let valorAtual = '';
+        if (id === 'titulo') valorAtual = atual.title || '';
+        if (id === 'desc') valorAtual = atual.description || '';
+        if (id === 'imagem') valorAtual = atual.image || '';
+        if (id === 'thumb') valorAtual = atual.thumbnail || '';
+        if (id === 'autor') valorAtual = atual.author?.nome || '';
+        if (id === 'autor_url') valorAtual = atual.author?.url || '';
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -219,6 +226,7 @@ client.on('interactionCreate', async (interaction) => {
               .setCustomId('input')
               .setLabel(id === 'autor_url' ? 'Link do autor' : 'Digite')
               .setStyle(id === 'desc' ? TextInputStyle.Paragraph : TextInputStyle.Short)
+              .setValue(valorAtual)
           )
         );
 
@@ -308,7 +316,7 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // MODAL SUBMIT
+    // MODAL
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'criar_botao') {
