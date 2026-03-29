@@ -83,6 +83,15 @@ function salvar() {
   fs.writeFileSync('./gastos.json', JSON.stringify(gastos, null, 2));
 }
 
+// 🔥 NOVO (não existia antes)
+function dividirTexto(texto, limite = 1000) {
+  const partes = [];
+  for (let i = 0; i < texto.length; i += limite) {
+    partes.push(texto.slice(i, i + limite));
+  }
+  return partes;
+}
+
 // ===== EMBED SYSTEM =====
 const embedSessions = {};
 
@@ -178,7 +187,7 @@ client.on('interactionCreate', async (interaction) => {
 **•** **Pedido:** ${db.pedidos}
 
 Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`)
-          .setFooter({ text: '‎' }); // 🔥 força render
+          .setFooter({ text: '‎' });
 
         const canal = client.channels.cache.get(CANAL_AVALIACOES);
         if (canal) canal.send({ embeds: [embed] });
@@ -222,6 +231,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      // 🔥 AQUI FOI A ÚNICA ALTERAÇÃO
       if (id.startsWith('msg_')) {
         const index = Number(id.split('_')[1]);
         const btn = session.buttons[index];
@@ -229,13 +239,17 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         await interaction.deferUpdate();
 
+        const partes = dividirTexto(btn.valor);
+
         return interaction.followUp({
-          embeds: [
+          embeds: partes.map(p =>
             new EmbedBuilder()
               .setColor('#2b2d31')
-              .setDescription(btn.valor)
+              .setTitle('📋 Informações')
+              .setDescription(p)
+              .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
               .setFooter({ text: '‎' })
-          ],
+          ),
           ephemeral: true
         });
       }
@@ -425,13 +439,9 @@ function montarEmbed(data) {
 
   if (data.title) embed.setTitle(data.title);
 
-  // 🔥 força descrição SEMPRE
   embed.setDescription(data.description && data.description.length > 0 ? data.description : '‎');
 
-  // 🔥 imagem independente
   if (data.image) embed.setImage(data.image);
-
-  // 🔥 thumbnail independente
   if (data.thumbnail) embed.setThumbnail(data.thumbnail);
 
   if (data.author) {
@@ -441,7 +451,6 @@ function montarEmbed(data) {
     });
   }
 
-  // 🔥 força render completo SEM depender de thumbnail
   embed.setFooter({ text: '‎' });
 
   return embed;
