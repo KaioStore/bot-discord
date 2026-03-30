@@ -145,103 +145,187 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     // ===== BOTÕES =====
     if (interaction.isButton()) {
-      const id = interaction.customId;
+  const id = interaction.customId;
 
-      if (id === 'add_embed') {
-        session.embeds.push({});
-        session.atual = session.embeds.length - 1;
+  // ===== ADICIONAR EMBED =====
+  if (id === 'add_embed') {
+    session.embeds.push({});
+    session.atual = session.embeds.length - 1;
+
+    return interaction.update({
+      embeds: [montarEmbed(session.embeds[session.atual])],
+      components: gerarMenu(interaction.user.id)
+    });
+  }
+
+  // ===== DELETAR EMBED =====
+  if (id === 'delete') {
+    session.embeds.splice(session.atual, 1);
+
+    if (session.embeds.length === 0) {
+      session.embeds.push({});
+    }
+
+    session.atual = 0;
+
+    return interaction.update({
+      embeds: [montarEmbed(session.embeds[0])],
+      components: gerarMenu(interaction.user.id)
+    });
+  }
+
+  // ===== EDITAR (IR PRA SEGUNDA PAGINA) =====
+  if (id === 'edit') {
+    return interaction.update({
+      embeds: [montarEmbed(atual)],
+      components: gerarEditor()
+    });
+  }
+
+  // ===== VOLTAR =====
+  if (id === 'voltar') {
+    return interaction.update({
+      embeds: [montarEmbed(atual)],
+      components: gerarMenu(interaction.user.id)
+    });
+  }
+
+  // ===== ADICIONAR BOTÃO =====
+  if (id === 'add_button') {
+    const modal = new ModalBuilder()
+      .setCustomId('criar_botao')
+      .setTitle('Adicionar botão');
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('label')
+          .setLabel('Nome do botão')
+          .setStyle(TextInputStyle.Short)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('valor')
+          .setLabel('Mensagem ou link')
+          .setStyle(TextInputStyle.Paragraph)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('cor')
+          .setLabel('Cor: azul, verde, cinza, vermelho')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false)
+      )
+    );
+
+    return interaction.showModal(modal);
+  }
+
+  // ===== ENVIAR =====
+  if (id === 'enviar') {
+    const rows = [];
+    let row = new ActionRowBuilder();
+
+    session.buttons.forEach((btn, i) => {
+
+      if (i % 5 === 0 && i !== 0) {
+        rows.push(row);
+        row = new ActionRowBuilder();
       }
 
-      if (id === 'delete') {
-        session.embeds.splice(session.atual, 1);
-        if (session.embeds.length === 0) session.embeds.push({});
-        session.atual = 0;
-      }
-
-      if (id === 'edit') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
-      if (id === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
-      if (id === 'add_button') {
-        const modal = new ModalBuilder()
-          .setCustomId('criar_botao')
-          .setTitle('Criar botão');
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza)').setStyle(TextInputStyle.Short)
-          )
+      if (btn.valor.startsWith('http')) {
+        row.addComponents(
+          new ButtonBuilder()
+            .setLabel(btn.label)
+            .setStyle(ButtonStyle.Link)
+            .setURL(btn.valor)
         );
-
-        return interaction.showModal(modal);
+      } else {
+        row.addComponents(
+          new ButtonBuilder()
+            .setLabel(btn.label)
+            .setStyle(btn.style || ButtonStyle.Secondary)
+            .setCustomId(`msg_${i}`)
+        );
       }
+    });
 
-      if (id === 'enviar') {
-        const rows = [];
-        let row = new ActionRowBuilder();
+    if (row.components.length > 0) rows.push(row);
 
-        session.buttons.forEach((btn, i) => {
-          if (i % 5 === 0 && i !== 0) {
-            rows.push(row);
-            row = new ActionRowBuilder();
-          }
+    await interaction.channel.send({
+      embeds: session.embeds.map(e => montarEmbed(e)),
+      components: rows
+    });
 
-          if (btn.valor.startsWith('http')) {
-            row.addComponents(
-              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor)
-            );
-          } else {
-            row.addComponents(
-              new ButtonBuilder()
-                .setLabel(btn.label)
-                .setStyle(btn.style)
-                .setCustomId(`msg_${i}`)
-            );
-          }
-        });
+    return interaction.reply({ content: 'Enviado!', ephemeral: true });
+  }
 
-        if (row.components.length > 0) rows.push(row);
+  // ===== EDITAR CAMPOS =====
+  if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
 
-        await interaction.channel.send({
-          embeds: session.embeds.map(e => montarEmbed(e)),
-          components: rows
-        });
+    if (id === 'autor') {
+      const modal = new ModalBuilder()
+        .setCustomId('autor_modal')
+        .setTitle('Autor');
 
-        return interaction.reply({ content: 'Enviado!', ephemeral: true });
-      }
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('nome')
+            .setLabel('Nome do autor')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(false)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('icon')
+            .setLabel('URL da imagem')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(false)
+        )
+      );
 
-      if (id.startsWith('msg_')) {
-        const index = Number(id.split('_')[1]);
-        const btn = session.buttons[index];
-        if (!btn) return;
+      return interaction.showModal(modal);
+    }
 
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#2b2d31')
-              .setTitle('📋 Informações')
-              .setDescription(btn.valor)
-              .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-          ],
-          ephemeral: true
-        });
-      }
+    const modal = new ModalBuilder()
+      .setCustomId(id)
+      .setTitle(`Editar ${id}`);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('input')
+          .setLabel(`Digite ${id}`)
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(false)
+      )
+    );
+
+    return interaction.showModal(modal);
+  }
+
+  // ===== BOTÃO CLICÁVEL =====
+  if (id.startsWith('msg_')) {
+    const index = Number(id.split('_')[1]);
+    const btn = session.buttons[index];
+    if (!btn) return;
+
+    await interaction.deferUpdate();
+
+    return interaction.followUp({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#2b2d31')
+          .setTitle('📋 Informações')
+          .setDescription(btn.valor)
+          .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
+          .setFooter({ text: '‎' })
+      ],
+      ephemeral: true
+    });
+  }
+}
 
       return interaction.update({
         embeds: [montarEmbed(atual)],
@@ -252,38 +336,57 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     // ===== MODAL =====
     if (interaction.isModalSubmit()) {
 
-      if (interaction.customId === 'criar_botao') {
-        const label = interaction.fields.getTextInputValue('label');
-        const valor = interaction.fields.getTextInputValue('valor');
-        const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
+  // ===== CRIAR BOTÃO =====
+  if (interaction.customId === 'criar_botao') {
+    const label = interaction.fields.getTextInputValue('label');
+    const valor = interaction.fields.getTextInputValue('valor');
+    const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
 
-        const map = {
-          azul: ButtonStyle.Primary,
-          verde: ButtonStyle.Success,
-          cinza: ButtonStyle.Secondary
-        };
+    const map = {
+      azul: ButtonStyle.Primary,
+      verde: ButtonStyle.Success,
+      cinza: ButtonStyle.Secondary,
+      vermelho: ButtonStyle.Danger
+    };
 
-        session.buttons.push({
-          label,
-          valor,
-          style: map[cor] || ButtonStyle.Primary
-        });
+    session.buttons.push({
+      label,
+      valor,
+      style: map[cor] || ButtonStyle.Secondary
+    });
 
-        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
-      }
+    return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+  }
 
-      const valor = interaction.fields.getTextInputValue('input');
+  // ===== AUTOR (AQUI QUE ENTRA O SEU CÓDIGO) =====
+  if (interaction.customId === 'autor_modal') {
+    const nome = interaction.fields.getTextInputValue('nome');
+    const icon = interaction.fields.getTextInputValue('icon');
 
-      if (interaction.customId === 'titulo') atual.title = valor;
-      if (interaction.customId === 'desc') atual.description = valor;
-      if (interaction.customId === 'imagem') atual.image = valor;
-      if (interaction.customId === 'thumb') atual.thumbnail = valor;
+    atual.author = {
+      nome: nome || atual.author?.nome,
+      icon: icon || atual.author?.icon
+    };
 
-      return interaction.update({
-        embeds: [montarEmbed(atual)],
-        components: gerarEditor()
-      });
-    }
+    return interaction.update({
+      embeds: [montarEmbed(atual)],
+      components: gerarEditor()
+    });
+  }
+
+  // ===== EDITAR CAMPOS =====
+  const valor = interaction.fields.getTextInputValue('input');
+
+  if (interaction.customId === 'titulo') atual.title = valor;
+  if (interaction.customId === 'desc') atual.description = valor;
+  if (interaction.customId === 'imagem') atual.image = valor;
+  if (interaction.customId === 'thumb') atual.thumbnail = valor;
+
+  return interaction.update({
+    embeds: [montarEmbed(atual)],
+    components: gerarEditor()
+  });
+}
 
   } catch (err) {
     console.error(err);
@@ -317,21 +420,23 @@ function gerarMenu(userId) {
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('select')
-        .addOptions(session.embeds.map((e,i)=>({
-          label:`Embed ${i+1}`,
-          value:`${i}`
-        })))
+        .setPlaceholder('Selecionar embed')
+        .addOptions(
+          session.embeds.map((e,i)=>({
+            label:`Embed ${i+1}`,
+            value:`${i}`
+          }))
+        )
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('add_button').setLabel('Botão').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
 }
-
 function gerarEditor() {
   return [
     new ActionRowBuilder().addComponents(
