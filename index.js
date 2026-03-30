@@ -125,7 +125,7 @@ client.on('interactionCreate', async (interaction) => {
 **• Total de avaliações:** ${db.total}
 **• Pedido:** ${db.pedidos}
 
-Esta avaliação foi registrada de forma **anônima**, prezamos pela segurança dos clientes!`)
+Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`)
           .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png');
 
         const canal = client.channels.cache.get(CANAL_AVALIACOES);
