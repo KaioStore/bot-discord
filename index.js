@@ -75,7 +75,7 @@ client.on('interactionCreate', async (interaction) => {
     // ================= SLASH =================
     if (interaction.isChatInputCommand()) {
 
-      // ✅ NÃO APAGA MAIS O EMBED
+      // ✅ CORREÇÃO AQUI (NÃO APAGA MAIS)
       if (interaction.commandName === 'embed') {
 
         if (!embedSessions[interaction.user.id]) {
@@ -132,15 +132,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
     }
 
-    // ✅ CORREÇÃO PRA NÃO QUEBRAR O BOT
     const session = embedSessions[interaction.user.id];
-
-    if (!session && (
-      interaction.isButton() ||
-      interaction.isStringSelectMenu() ||
-      interaction.isModalSubmit()
-    )) return;
-
     if (!session) return;
 
     let atual = session.embeds[session.atual];
