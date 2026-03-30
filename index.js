@@ -72,6 +72,7 @@ client.on('interactionCreate', async (interaction) => {
   try {
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
+    // ================= SLASH =================
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
@@ -220,10 +221,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
 
       if (id === 'enviar') {
-
-        // 🔥 mantém sessão (não perde dados)
-        embedSessions[interaction.user.id] = session;
-
         const rows = [];
         let row = new ActionRowBuilder();
 
@@ -295,11 +292,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(
-                id === 'imagem' ? 'URL da imagem' :
-                id === 'thumb' ? 'URL da thumbnail' :
-                `Digite ${id}`
-              )
+              .setLabel(id === 'thumb' ? 'URL da thumbnail' : `Digite ${id}`)
               .setStyle(TextInputStyle.Paragraph)
               .setRequired(false)
           )
@@ -370,11 +363,23 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       const valor = interaction.fields.getTextInputValue('input');
 
       if (interaction.customId === 'titulo') {
-        if (valor) atual.title = atual.title ? atual.title + '\n' + valor : valor;
+        if (valor) {
+          if (atual.title === 'Novo Embed') {
+            atual.title = valor;
+          } else {
+            atual.title = atual.title ? atual.title + '\n' + valor : valor;
+          }
+        }
       }
 
       if (interaction.customId === 'desc') {
-        if (valor) atual.description = atual.description ? atual.description + '\n' + valor : valor;
+        if (valor) {
+          if (atual.description === 'Lembre-se que seu Embed não pode ser vazio!') {
+            atual.description = valor;
+          } else {
+            atual.description = atual.description ? atual.description + '\n' + valor : valor;
+          }
+        }
       }
 
       if (interaction.customId === 'imagem') {
