@@ -75,15 +75,19 @@ client.on('interactionCreate', async (interaction) => {
     // ================= SLASH =================
     if (interaction.isChatInputCommand()) {
 
+      // ✅ CORREÇÃO AQUI (NÃO APAGA MAIS)
       if (interaction.commandName === 'embed') {
-        embedSessions[interaction.user.id] = {
-          embeds: [{
-            title: 'Novo Embed',
-            description: 'Lembre-se que seu Embed não pode ser vazio!'
-          }],
-          atual: 0,
-          buttons: []
-        };
+
+        if (!embedSessions[interaction.user.id]) {
+          embedSessions[interaction.user.id] = {
+            embeds: [{
+              title: 'Novo Embed',
+              description: 'Lembre-se que seu Embed não pode ser vazio!'
+            }],
+            atual: 0,
+            buttons: []
+          };
+        }
 
         return interaction.reply({
           embeds: [
@@ -218,6 +222,43 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         );
 
         return interaction.showModal(modal);
+      }
+
+      if (id === 'enviar') {
+        const rows = [];
+        let row = new ActionRowBuilder();
+
+        session.buttons.forEach((btn, i) => {
+          if (i % 5 === 0 && i !== 0) {
+            rows.push(row);
+            row = new ActionRowBuilder();
+          }
+
+          if (btn.valor.startsWith('http')) {
+            row.addComponents(
+              new ButtonBuilder()
+                .setLabel(btn.label)
+                .setStyle(ButtonStyle.Link)
+                .setURL(btn.valor)
+            );
+          } else {
+            row.addComponents(
+              new ButtonBuilder()
+                .setLabel(btn.label)
+                .setStyle(btn.style || ButtonStyle.Secondary)
+                .setCustomId(`msg_${i}`)
+            );
+          }
+        });
+
+        if (row.components.length > 0) rows.push(row);
+
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e)),
+          components: rows
+        });
+
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
 
       if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
