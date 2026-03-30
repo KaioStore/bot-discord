@@ -32,6 +32,12 @@ app.use(cors());
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
 
+// 🔥 CORREÇÃO: evita crash sem token
+if (!TOKEN) {
+  console.error('TOKEN não definida!');
+  process.exit(1);
+}
+
 // ===== CLIENT =====
 const client = new Client({
   intents: [
@@ -70,7 +76,8 @@ client.on('ready', () => {
 // ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
   try {
-    const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
+    // 🔥 CORREÇÃO AQUI
+    const isAdmin = interaction.member?.permissions?.has?.(PermissionsBitField.Flags.Administrator);
 
     // ================= SLASH =================
     if (interaction.isChatInputCommand()) {
@@ -120,7 +127,8 @@ client.on('interactionCreate', async (interaction) => {
 Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`)
           .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png');
 
-        const canal = client.channels.cache.get(CANAL_AVALIACOES);
+        // 🔥 CORREÇÃO AQUI
+        const canal = await client.channels.fetch(CANAL_AVALIACOES).catch(() => null);
         if (canal) canal.send({ embeds: [embed] });
 
         return interaction.editReply('Avaliação enviada.');
@@ -145,187 +153,177 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     // ===== BOTÕES =====
     if (interaction.isButton()) {
-  const id = interaction.customId;
+      const id = interaction.customId;
 
-  // ===== ADICIONAR EMBED =====
-  if (id === 'add_embed') {
-    session.embeds.push({});
-    session.atual = session.embeds.length - 1;
+      if (id === 'add_embed') {
+        session.embeds.push({});
+        session.atual = session.embeds.length - 1;
 
-    return interaction.update({
-      embeds: [montarEmbed(session.embeds[session.atual])],
-      components: gerarMenu(interaction.user.id)
-    });
-  }
-
-  // ===== DELETAR EMBED =====
-  if (id === 'delete') {
-    session.embeds.splice(session.atual, 1);
-
-    if (session.embeds.length === 0) {
-      session.embeds.push({});
-    }
-
-    session.atual = 0;
-
-    return interaction.update({
-      embeds: [montarEmbed(session.embeds[0])],
-      components: gerarMenu(interaction.user.id)
-    });
-  }
-
-  // ===== EDITAR (IR PRA SEGUNDA PAGINA) =====
-  if (id === 'edit') {
-    return interaction.update({
-      embeds: [montarEmbed(atual)],
-      components: gerarEditor()
-    });
-  }
-
-  // ===== VOLTAR =====
-  if (id === 'voltar') {
-    return interaction.update({
-      embeds: [montarEmbed(atual)],
-      components: gerarMenu(interaction.user.id)
-    });
-  }
-
-  // ===== ADICIONAR BOTÃO =====
-  if (id === 'add_button') {
-    const modal = new ModalBuilder()
-      .setCustomId('criar_botao')
-      .setTitle('Adicionar botão');
-
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('label')
-          .setLabel('Nome do botão')
-          .setStyle(TextInputStyle.Short)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('valor')
-          .setLabel('Mensagem ou link')
-          .setStyle(TextInputStyle.Paragraph)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('cor')
-          .setLabel('Cor: azul, verde, cinza, vermelho')
-          .setStyle(TextInputStyle.Short)
-          .setRequired(false)
-      )
-    );
-
-    return interaction.showModal(modal);
-  }
-
-  // ===== ENVIAR =====
-  if (id === 'enviar') {
-    const rows = [];
-    let row = new ActionRowBuilder();
-
-    session.buttons.forEach((btn, i) => {
-
-      if (i % 5 === 0 && i !== 0) {
-        rows.push(row);
-        row = new ActionRowBuilder();
+        return interaction.update({
+          embeds: [montarEmbed(session.embeds[session.atual])],
+          components: gerarMenu(interaction.user.id)
+        });
       }
 
-      if (btn.valor.startsWith('http')) {
-        row.addComponents(
-          new ButtonBuilder()
-            .setLabel(btn.label)
-            .setStyle(ButtonStyle.Link)
-            .setURL(btn.valor)
-        );
-      } else {
-        row.addComponents(
-          new ButtonBuilder()
-            .setLabel(btn.label)
-            .setStyle(btn.style || ButtonStyle.Secondary)
-            .setCustomId(`msg_${i}`)
-        );
+      if (id === 'delete') {
+        session.embeds.splice(session.atual, 1);
+
+        if (session.embeds.length === 0) {
+          session.embeds.push({});
+        }
+
+        session.atual = 0;
+
+        return interaction.update({
+          embeds: [montarEmbed(session.embeds[0])],
+          components: gerarMenu(interaction.user.id)
+        });
       }
-    });
 
-    if (row.components.length > 0) rows.push(row);
+      if (id === 'edit') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
 
-    await interaction.channel.send({
-      embeds: session.embeds.map(e => montarEmbed(e)),
-      components: rows
-    });
+      if (id === 'voltar') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
 
-    return interaction.reply({ content: 'Enviado!', ephemeral: true });
-  }
+      if (id === 'add_button') {
+        const modal = new ModalBuilder()
+          .setCustomId('criar_botao')
+          .setTitle('Adicionar botão');
 
-  // ===== EDITAR CAMPOS =====
-  if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('label')
+              .setLabel('Nome do botão')
+              .setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('valor')
+              .setLabel('Mensagem ou link')
+              .setStyle(TextInputStyle.Paragraph)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('cor')
+              .setLabel('Cor: azul, verde, cinza, vermelho')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(false)
+          )
+        );
 
-    if (id === 'autor') {
-      const modal = new ModalBuilder()
-        .setCustomId('autor_modal')
-        .setTitle('Autor');
+        return interaction.showModal(modal);
+      }
 
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('nome')
-            .setLabel('Nome do autor')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(false)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('icon')
-            .setLabel('URL da imagem')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(false)
-        )
-      );
+      if (id === 'enviar') {
+        const rows = [];
+        let row = new ActionRowBuilder();
 
-      return interaction.showModal(modal);
-    }
+        session.buttons.forEach((btn, i) => {
+          if (i % 5 === 0 && i !== 0) {
+            rows.push(row);
+            row = new ActionRowBuilder();
+          }
 
-    const modal = new ModalBuilder()
-      .setCustomId(id)
-      .setTitle(`Editar ${id}`);
+          if (btn.valor.startsWith('http')) {
+            row.addComponents(
+              new ButtonBuilder()
+                .setLabel(btn.label)
+                .setStyle(ButtonStyle.Link)
+                .setURL(btn.valor)
+            );
+          } else {
+            row.addComponents(
+              new ButtonBuilder()
+                .setLabel(btn.label)
+                .setStyle(btn.style || ButtonStyle.Secondary)
+                .setCustomId(`msg_${i}`)
+            );
+          }
+        });
 
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder()
-          .setCustomId('input')
-          .setLabel(`Digite ${id}`)
-          .setStyle(TextInputStyle.Paragraph)
-          .setRequired(false)
-      )
-    );
+        if (row.components.length > 0) rows.push(row);
 
-    return interaction.showModal(modal);
-  }
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e)),
+          components: rows
+        });
 
-  // ===== BOTÃO CLICÁVEL =====
-  if (id.startsWith('msg_')) {
-    const index = Number(id.split('_')[1]);
-    const btn = session.buttons[index];
-    if (!btn) return;
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
+      }
 
-    await interaction.deferUpdate();
+      if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
 
-    return interaction.followUp({
-      embeds: [
-        new EmbedBuilder()
-          .setColor('#2b2d31')
-          .setTitle('📋 Informações')
-          .setDescription(btn.valor)
-          .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-          .setFooter({ text: '‎' })
-      ],
-      ephemeral: true
-    });
-  }
-}
+        if (id === 'autor') {
+          const modal = new ModalBuilder()
+            .setCustomId('autor_modal')
+            .setTitle('Autor');
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('nome')
+                .setLabel('Nome do autor')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(false)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('icon')
+                .setLabel('URL da imagem')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(false)
+            )
+          );
+
+          return interaction.showModal(modal);
+        }
+
+        const modal = new ModalBuilder()
+          .setCustomId(id)
+          .setTitle(`Editar ${id}`);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('input')
+              .setLabel(`Digite ${id}`)
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(false)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      if (id.startsWith('msg_')) {
+        const index = Number(id.split('_')[1]);
+        const btn = session.buttons[index];
+        if (!btn) return;
+
+        await interaction.deferUpdate();
+
+        return interaction.followUp({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#2b2d31')
+              .setTitle('📋 Informações')
+              .setDescription(btn.valor)
+              .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
+              .setFooter({ text: '‎' })
+          ],
+          ephemeral: true
+        });
+      }
 
       return interaction.update({
         embeds: [montarEmbed(atual)],
@@ -336,57 +334,54 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     // ===== MODAL =====
     if (interaction.isModalSubmit()) {
 
-  // ===== CRIAR BOTÃO =====
-  if (interaction.customId === 'criar_botao') {
-    const label = interaction.fields.getTextInputValue('label');
-    const valor = interaction.fields.getTextInputValue('valor');
-    const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
+      if (interaction.customId === 'criar_botao') {
+        const label = interaction.fields.getTextInputValue('label');
+        const valor = interaction.fields.getTextInputValue('valor');
+        const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
 
-    const map = {
-      azul: ButtonStyle.Primary,
-      verde: ButtonStyle.Success,
-      cinza: ButtonStyle.Secondary,
-      vermelho: ButtonStyle.Danger
-    };
+        const map = {
+          azul: ButtonStyle.Primary,
+          verde: ButtonStyle.Success,
+          cinza: ButtonStyle.Secondary,
+          vermelho: ButtonStyle.Danger
+        };
 
-    session.buttons.push({
-      label,
-      valor,
-      style: map[cor] || ButtonStyle.Secondary
-    });
+        session.buttons.push({
+          label,
+          valor,
+          style: map[cor] || ButtonStyle.Secondary
+        });
 
-    return interaction.reply({ content: 'Botão criado!', ephemeral: true });
-  }
+        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+      }
 
-  // ===== AUTOR (AQUI QUE ENTRA O SEU CÓDIGO) =====
-  if (interaction.customId === 'autor_modal') {
-    const nome = interaction.fields.getTextInputValue('nome');
-    const icon = interaction.fields.getTextInputValue('icon');
+      if (interaction.customId === 'autor_modal') {
+        const nome = interaction.fields.getTextInputValue('nome');
+        const icon = interaction.fields.getTextInputValue('icon');
 
-    atual.author = {
-      nome: nome || atual.author?.nome,
-      icon: icon || atual.author?.icon
-    };
+        atual.author = {
+          nome: nome || atual.author?.nome,
+          icon: icon || atual.author?.icon
+        };
 
-    return interaction.update({
-      embeds: [montarEmbed(atual)],
-      components: gerarEditor()
-    });
-  }
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
 
-  // ===== EDITAR CAMPOS =====
-  const valor = interaction.fields.getTextInputValue('input');
+      const valor = interaction.fields.getTextInputValue('input');
 
-  if (interaction.customId === 'titulo') atual.title = valor;
-  if (interaction.customId === 'desc') atual.description = valor;
-  if (interaction.customId === 'imagem') atual.image = valor;
-  if (interaction.customId === 'thumb') atual.thumbnail = valor;
+      if (interaction.customId === 'titulo') atual.title = valor || atual.title;
+      if (interaction.customId === 'desc') atual.description = valor || atual.description;
+      if (interaction.customId === 'imagem') atual.image = valor || atual.image;
+      if (interaction.customId === 'thumb') atual.thumbnail = valor || atual.thumbnail;
 
-  return interaction.update({
-    embeds: [montarEmbed(atual)],
-    components: gerarEditor()
-  });
-}
+      return interaction.update({
+        embeds: [montarEmbed(atual)],
+        components: gerarEditor()
+      });
+    }
 
   } catch (err) {
     console.error(err);
@@ -437,6 +432,7 @@ function gerarMenu(userId) {
     )
   ];
 }
+
 function gerarEditor() {
   return [
     new ActionRowBuilder().addComponents(
