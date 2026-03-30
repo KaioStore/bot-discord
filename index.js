@@ -32,7 +32,6 @@ app.use(cors());
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
 
-// 🔥 CORREÇÃO: evita crash sem token
 if (!TOKEN) {
   console.error('TOKEN não definida!');
   process.exit(1);
@@ -76,13 +75,11 @@ client.on('ready', () => {
 // ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
   try {
-    // 🔥 CORREÇÃO AQUI
     const isAdmin = interaction.member?.permissions?.has?.(PermissionsBitField.Flags.Administrator);
 
     // ================= SLASH =================
     if (interaction.isChatInputCommand()) {
 
-      // ===== EMBED =====
       if (interaction.commandName === 'embed') {
         embedSessions[interaction.user.id] = {
           embeds: [{}],
@@ -102,7 +99,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ===== AVALIAR =====
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) {
           return interaction.reply({ content: 'Só administradores.', ephemeral: true });
@@ -127,7 +123,6 @@ client.on('interactionCreate', async (interaction) => {
 Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`)
           .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png');
 
-        // 🔥 CORREÇÃO AQUI
         const canal = await client.channels.fetch(CANAL_AVALIACOES).catch(() => null);
         if (canal) canal.send({ embeds: [embed] });
 
@@ -135,13 +130,11 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
     }
 
-    // ================= SESSÃO =================
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
     let atual = session.embeds[session.atual];
 
-    // ===== SELECT =====
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -151,7 +144,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       });
     }
 
-    // ===== BOTÕES =====
     if (interaction.isButton()) {
       const id = interaction.customId;
 
@@ -167,11 +159,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
       if (id === 'delete') {
         session.embeds.splice(session.atual, 1);
-
-        if (session.embeds.length === 0) {
-          session.embeds.push({});
-        }
-
+        if (session.embeds.length === 0) session.embeds.push({});
         session.atual = 0;
 
         return interaction.update({
@@ -201,23 +189,13 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         modal.addComponents(
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('label')
-              .setLabel('Nome do botão')
-              .setStyle(TextInputStyle.Short)
+            new TextInputBuilder().setCustomId('label').setLabel('Nome do botão').setStyle(TextInputStyle.Short)
           ),
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('valor')
-              .setLabel('Mensagem ou link')
-              .setStyle(TextInputStyle.Paragraph)
+            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
           ),
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('cor')
-              .setLabel('Cor: azul, verde, cinza, vermelho')
-              .setStyle(TextInputStyle.Short)
-              .setRequired(false)
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor').setStyle(TextInputStyle.Short).setRequired(false)
           )
         );
 
@@ -235,19 +213,9 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           }
 
           if (btn.valor.startsWith('http')) {
-            row.addComponents(
-              new ButtonBuilder()
-                .setLabel(btn.label)
-                .setStyle(ButtonStyle.Link)
-                .setURL(btn.valor)
-            );
+            row.addComponents(new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor));
           } else {
-            row.addComponents(
-              new ButtonBuilder()
-                .setLabel(btn.label)
-                .setStyle(btn.style || ButtonStyle.Secondary)
-                .setCustomId(`msg_${i}`)
-            );
+            row.addComponents(new ButtonBuilder().setLabel(btn.label).setStyle(btn.style || ButtonStyle.Secondary).setCustomId(`msg_${i}`));
           }
         });
 
@@ -270,18 +238,10 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
           modal.addComponents(
             new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('nome')
-                .setLabel('Nome do autor')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(false)
+              new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short)
             ),
             new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('icon')
-                .setLabel('URL da imagem')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(false)
+              new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short)
             )
           );
 
@@ -294,11 +254,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         modal.addComponents(
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('input')
-              .setLabel(`Digite ${id}`)
-              .setStyle(TextInputStyle.Paragraph)
-              .setRequired(false)
+            new TextInputBuilder().setCustomId('input').setLabel(`Digite ${id}`).setStyle(TextInputStyle.Paragraph)
           )
         );
 
@@ -318,8 +274,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
               .setColor('#2b2d31')
               .setTitle('📋 Informações')
               .setDescription(btn.valor)
-              .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-              .setFooter({ text: '‎' })
           ],
           ephemeral: true
         });
@@ -331,7 +285,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       });
     }
 
-    // ===== MODAL =====
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'criar_botao') {
@@ -395,13 +348,13 @@ function montarEmbed(data) {
   if (data.title) embed.setTitle(data.title);
   embed.setDescription(data.description || '‎');
 
-  if (data.image) embed.setImage(data.image);
-  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
+  if (data.image && data.image.startsWith('http')) embed.setImage(data.image);
+  if (data.thumbnail && data.thumbnail.startsWith('http')) embed.setThumbnail(data.thumbnail);
 
   if (data.author) {
     embed.setAuthor({
       name: data.author.nome || '‎',
-      iconURL: data.author.icon || undefined
+      iconURL: data.author.icon?.startsWith('http') ? data.author.icon : undefined
     });
   }
 
@@ -416,12 +369,10 @@ function gerarMenu(userId) {
       new StringSelectMenuBuilder()
         .setCustomId('select')
         .setPlaceholder('Selecionar embed')
-        .addOptions(
-          session.embeds.map((e,i)=>({
-            label:`Embed ${i+1}`,
-            value:`${i}`
-          }))
-        )
+        .addOptions(session.embeds.map((e,i)=>({
+          label:`Embed ${i+1}`,
+          value:`${i}`
+        })))
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
@@ -439,7 +390,8 @@ function gerarEditor() {
       new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary) // 🔥 ADICIONADO
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
