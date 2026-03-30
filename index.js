@@ -178,17 +178,15 @@ client.on('interactionCreate', async (interaction) => {
         salvar();
 
         const embed = new EmbedBuilder()
-  .setColor('#2b2d31')
-  .setTitle('**Avaliação Recebida! 🖤**')
-  .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
-  .setDescription(`**•** **Avaliação:** ${texto}
+          .setColor('#2b2d31')
+          .setTitle('**Avaliação Recebida! 🖤**')
+          .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
+          .setDescription(`**•** **Avaliação:** ${texto}
 **•** **Total de avaliações:** ${db.total}
 **•** **Pedido:** ${db.pedidos}
 
-Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**
-
-‎`)
-.setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
+Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`)
+          .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png');
 
         const canal = client.channels.cache.get(CANAL_AVALIACOES);
         if (canal) canal.send({ embeds: [embed] });
@@ -207,8 +205,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
               const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
               return `${medal} <@${id}>\n💰 R$${total}`;
             }).join('\n\n')
-          )
-          .setFooter({ text: '‎' });
+          );
 
         return interaction.reply({ embeds: [embed] });
       }
@@ -223,7 +220,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
-      // 🔥 BOTÃO AGORA MANDA EMBED BONITO + IMAGEM + DIVISÃO
       if (id.startsWith('msg_')) {
         const index = Number(id.split('_')[1]);
         const btn = session.buttons[index];
@@ -240,7 +236,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
               .setTitle('📋 Informações')
               .setDescription(p)
               .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-              .setFooter({ text: '‎' })
           ),
           ephemeral: true
         });
