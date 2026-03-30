@@ -173,16 +173,24 @@ Esta avaliação foi registrada de forma **anônima**, prezamos pela segurança 
       }
 
       if (id.startsWith('msg_')) {
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#2b2d31')
-              .setDescription('Mensagem do botão')
-              .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-          ],
-          ephemeral: true
-        });
-      }
+  const index = Number(id.split('_')[1]);
+  const btn = session.buttons[index];
+  if (!btn) return;
+
+  await interaction.deferUpdate();
+
+  return interaction.followUp({
+    embeds: [
+      new EmbedBuilder()
+        .setColor('#2b2d31')
+        .setTitle('📋 Informações')
+        .setDescription(btn.valor)
+        .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
+        .setFooter({ text: '‎' })
+    ],
+    ephemeral: true
+  });
+}
 
       return interaction.update({
         embeds: [montarEmbed(atual)],
@@ -215,9 +223,24 @@ function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
 
   if (data.title) embed.setTitle(data.title);
-  if (data.description) embed.setDescription(data.description);
+
+  // força descrição pra não quebrar layout
+  embed.setDescription(data.description && data.description.length > 0 ? data.description : '‎');
+
+  // 🔥 imagem independente (SEM depender de thumbnail)
   if (data.image) embed.setImage(data.image);
+
   if (data.thumbnail) embed.setThumbnail(data.thumbnail);
+
+  if (data.author) {
+    embed.setAuthor({
+      name: data.author.nome || '‎',
+      iconURL: data.author.icon || undefined
+    });
+  }
+
+  // 🔥 isso aqui é o segredo pra não bugar layout
+  embed.setFooter({ text: '‎' });
 
   return embed;
 }
