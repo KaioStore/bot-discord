@@ -220,69 +220,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.showModal(modal);
       }
 
-      if (id === 'enviar') {
-        const rows = [];
-        let row = new ActionRowBuilder();
-
-        session.buttons.forEach((btn, i) => {
-          if (i % 5 === 0 && i !== 0) {
-            rows.push(row);
-            row = new ActionRowBuilder();
-          }
-
-          if (btn.valor.startsWith('http')) {
-            row.addComponents(
-              new ButtonBuilder()
-                .setLabel(btn.label)
-                .setStyle(ButtonStyle.Link)
-                .setURL(btn.valor)
-            );
-          } else {
-            row.addComponents(
-              new ButtonBuilder()
-                .setLabel(btn.label)
-                .setStyle(btn.style || ButtonStyle.Secondary)
-                .setCustomId(`msg_${i}`)
-            );
-          }
-        });
-
-        if (row.components.length > 0) rows.push(row);
-
-        await interaction.channel.send({
-          embeds: session.embeds.map(e => montarEmbed(e)),
-          components: rows
-        });
-
-        return interaction.reply({ content: 'Enviado!', ephemeral: true });
-      }
-
       if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
-
-        if (id === 'autor') {
-          const modal = new ModalBuilder()
-            .setCustomId('autor_modal')
-            .setTitle('Autor');
-
-          modal.addComponents(
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('nome')
-                .setLabel('Nome do autor')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(false)
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('icon')
-                .setLabel('URL da imagem')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(false)
-            )
-          );
-
-          return interaction.showModal(modal);
-        }
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -292,7 +230,11 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(id === 'thumb' ? 'URL da thumbnail' : `Digite ${id}`)
+              .setLabel(
+                id === 'thumb' ? 'URL da thumbnail' :
+                id === 'imagem' ? 'URL da imagem' :
+                `Digite ${id}`
+              )
               .setStyle(TextInputStyle.Paragraph)
               .setRequired(false)
           )
@@ -300,66 +242,11 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         return interaction.showModal(modal);
       }
-
-      if (id.startsWith('msg_')) {
-        const index = Number(id.split('_')[1]);
-        const btn = session.buttons[index];
-        if (!btn) return;
-
-        await interaction.deferUpdate();
-
-        return interaction.followUp({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#2b2d31')
-              .setTitle('📋 Informações')
-              .setDescription(btn.valor)
-              .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png')
-              .setFooter({ text: '‎' })
-          ],
-          ephemeral: true
-        });
-      }
     }
 
     if (interaction.isModalSubmit()) {
 
-      if (interaction.customId === 'criar_botao') {
-        const label = interaction.fields.getTextInputValue('label');
-        const valor = interaction.fields.getTextInputValue('valor');
-        const cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
-
-        const map = {
-          azul: ButtonStyle.Primary,
-          verde: ButtonStyle.Success,
-          cinza: ButtonStyle.Secondary,
-          vermelho: ButtonStyle.Danger
-        };
-
-        session.buttons.push({
-          label,
-          valor,
-          style: map[cor] || ButtonStyle.Secondary
-        });
-
-        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
-      }
-
-      if (interaction.customId === 'autor_modal') {
-        const nome = interaction.fields.getTextInputValue('nome');
-        const icon = interaction.fields.getTextInputValue('icon');
-
-        atual.author = {
-          nome: nome || atual.author?.nome,
-          icon: icon || atual.author?.icon
-        };
-
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
+      let atual = session.embeds[session.atual];
       const valor = interaction.fields.getTextInputValue('input');
 
       if (interaction.customId === 'titulo') {
@@ -367,7 +254,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           if (atual.title === 'Novo Embed') {
             atual.title = valor;
           } else {
-            atual.title = atual.title ? atual.title + '\n' + valor : valor;
+            atual.title = (atual.title || '') + '\n' + valor;
           }
         }
       }
@@ -377,7 +264,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           if (atual.description === 'Lembre-se que seu Embed não pode ser vazio!') {
             atual.description = valor;
           } else {
-            atual.description = atual.description ? atual.description + '\n' + valor : valor;
+            atual.description = (atual.description || '') + '\n' + valor;
           }
         }
       }
@@ -405,8 +292,12 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
 
-  if (data.title) embed.setTitle(data.title);
-  embed.setDescription(data.description || '‎');
+  if (data.title && data.title !== 'Novo Embed') embed.setTitle(data.title);
+  if (data.description && data.description !== 'Lembre-se que seu Embed não pode ser vazio!') {
+    embed.setDescription(data.description);
+  } else {
+    embed.setDescription('‎');
+  }
 
   if (data.image) embed.setImage(data.image);
   if (data.thumbnail) embed.setThumbnail(data.thumbnail);
