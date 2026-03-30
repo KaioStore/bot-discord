@@ -72,10 +72,8 @@ client.on('interactionCreate', async (interaction) => {
   try {
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
-    // ================= SLASH =================
     if (interaction.isChatInputCommand()) {
 
-      // ===== EMBED =====
       if (interaction.commandName === 'embed') {
         embedSessions[interaction.user.id] = {
           embeds: [{
@@ -98,7 +96,6 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // ===== AVALIAR =====
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) {
           return interaction.reply({ content: 'Só administradores.', ephemeral: true });
@@ -130,13 +127,11 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
     }
 
-    // ================= SESSÃO =================
     const session = embedSessions[interaction.user.id];
     if (!session) return;
 
     let atual = session.embeds[session.atual];
 
-    // ===== SELECT =====
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -146,7 +141,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       });
     }
 
-    // ===== BOTÕES =====
     if (interaction.isButton()) {
       const id = interaction.customId;
 
@@ -226,6 +220,10 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
 
       if (id === 'enviar') {
+
+        // 🔥 mantém sessão (não perde dados)
+        embedSessions[interaction.user.id] = session;
+
         const rows = [];
         let row = new ActionRowBuilder();
 
@@ -297,7 +295,11 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(`Digite ${id}`)
+              .setLabel(
+                id === 'imagem' ? 'URL da imagem' :
+                id === 'thumb' ? 'URL da thumbnail' :
+                `Digite ${id}`
+              )
               .setStyle(TextInputStyle.Paragraph)
               .setRequired(false)
           )
@@ -327,7 +329,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
     }
 
-    // ===== MODAL =====
     if (interaction.isModalSubmit()) {
 
       if (interaction.customId === 'criar_botao') {
@@ -446,7 +447,8 @@ function gerarEditor() {
       new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
