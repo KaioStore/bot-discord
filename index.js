@@ -75,6 +75,7 @@ client.on('interactionCreate', async (interaction) => {
     // ================= SLASH =================
     if (interaction.isChatInputCommand()) {
 
+      // ✅ CORREÇÃO: NÃO APAGA SESSÃO
       if (interaction.commandName === 'embed') {
 
         if (!embedSessions[interaction.user.id]) {
@@ -317,11 +318,9 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         if (valor) atual.thumbnail = valor;
       }
 
-      // 🔥 CORREÇÃO (A ÚNICA ALTERAÇÃO)
-      return interaction.reply({
+      return interaction.update({
         embeds: [montarEmbed(atual)],
-        components: gerarEditor(),
-        ephemeral: true
+        components: gerarEditor()
       });
     }
 
@@ -335,6 +334,7 @@ function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
 
   if (data.title && data.title !== 'Novo Embed') embed.setTitle(data.title);
+
   if (data.description && data.description !== 'Lembre-se que seu Embed não pode ser vazio!') {
     embed.setDescription(data.description);
   } else {
