@@ -43,7 +43,17 @@ const client = new Client({
 });
 
 // ===== BANCO =====
-let db = { total: 419, pedidos: 450 };
+let db;
+
+try {
+  if (fs.existsSync('./db.json')) {
+    db = JSON.parse(fs.readFileSync('./db.json', 'utf8'));
+  } else {
+    db = { total: 427, pedidos: 458 };
+  }
+} catch {
+  db = { total: 427, pedidos: 458 };
+}
 let gastos = {};
 
 try {
