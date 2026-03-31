@@ -90,11 +90,6 @@ client.on('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 CORREÇÃO DO BUG
-    if (interaction.isChatInputCommand()) {
-      await interaction.deferReply({ ephemeral: true });
-    }
-
     // ===== GERENCIAR BOTÕES =====
     if (interaction.isButton() && interaction.customId.startsWith('delete_btn_')) {
       const session = embedSessions[interaction.user.id];
@@ -164,9 +159,10 @@ client.on('interactionCreate', async (interaction) => {
         )
       );
 
-      return interaction.editReply({
+      return interaction.reply({
         content: 'Gerenciar botões:',
-        components: rows
+        components: rows,
+        ephemeral: true
       });
     }
 
@@ -191,9 +187,13 @@ client.on('interactionCreate', async (interaction) => {
 
     const isAdmin = interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator);
 
+    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
+
+        await interaction.deferReply({ ephemeral: true });
+
         if (!embedSessions[interaction.user.id]) {
           embedSessions[interaction.user.id] = {
             embeds: [{
@@ -218,10 +218,12 @@ client.on('interactionCreate', async (interaction) => {
 
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) {
-          return interaction.editReply('Só administradores.');
+          return interaction.reply({ content: 'Só administradores.', ephemeral: true });
         }
 
         const texto = interaction.options.getString('texto');
+
+        await interaction.deferReply({ ephemeral: true });
 
         db.total++;
         db.pedidos++;
@@ -305,7 +307,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
             new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
           ),
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('cor').setLabel('Cor: azul, verde, cinza, preto').setStyle(TextInputStyle.Short).setRequired(false)
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor').setStyle(TextInputStyle.Short).setRequired(false)
           )
         );
 
