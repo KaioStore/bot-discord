@@ -71,7 +71,7 @@ client.on('ready', () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 CORREÇÃO INTERAÇÃO BOTÃO (resolve "falhou")
+    // 🔥 BOTÃO AGORA ENVIA EMBED BONITO
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -81,7 +81,15 @@ client.on('interactionCreate', async (interaction) => {
 
       if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
 
-      return interaction.reply({ content: btn.valor, ephemeral: true });
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#2b2d31')
+            .setTitle('Mensagem')
+            .setDescription(btn.valor)
+        ],
+        ephemeral: true
+      });
     }
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
