@@ -74,7 +74,6 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.isChatInputCommand()) {
 
-      // ✅ NÃO RESETA MAIS
       if (interaction.commandName === 'embed') {
 
         if (!embedSessions[interaction.user.id]) {
@@ -148,7 +147,109 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      if (id === 'add_embed') {
+        session.embeds.push({
+          title: 'Novo Embed',
+          description: 'Lembre-se que seu Embed não pode ser vazio!'
+        });
+        session.atual = session.embeds.length - 1;
+
+        return interaction.update({
+          embeds: [montarEmbed(session.embeds[session.atual])],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
+      if (id === 'delete') {
+        session.embeds.splice(session.atual, 1);
+
+        if (session.embeds.length === 0) {
+          session.embeds.push({
+            title: 'Novo Embed',
+            description: 'Lembre-se que seu Embed não pode ser vazio!'
+          });
+        }
+
+        session.atual = 0;
+
+        return interaction.update({
+          embeds: [montarEmbed(session.embeds[0])],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
+      if (id === 'edit') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
+      if (id === 'voltar') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
+      if (id === 'add_button') {
+        const modal = new ModalBuilder()
+          .setCustomId('criar_botao')
+          .setTitle('Adicionar botão');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('label')
+              .setLabel('Nome do botão')
+              .setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('valor')
+              .setLabel('Mensagem ou link')
+              .setStyle(TextInputStyle.Paragraph)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('cor')
+              .setLabel('Cor: azul, verde, cinza, vermelho')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(false)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
       if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
+
+        if (id === 'autor') {
+          const modal = new ModalBuilder()
+            .setCustomId('autor_modal')
+            .setTitle('Autor');
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('nome')
+                .setLabel('Nome do autor')
+                .setStyle(TextInputStyle.Short)
+                .setValue(atual.author?.nome || '')
+                .setRequired(false)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('icon')
+                .setLabel('URL da imagem')
+                .setStyle(TextInputStyle.Short)
+                .setValue(atual.author?.icon || '')
+                .setRequired(false)
+            )
+          );
+
+          return interaction.showModal(modal);
+        }
 
         const modal = new ModalBuilder()
           .setCustomId(id)
@@ -158,14 +259,8 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(
-                id === 'thumb' ? 'URL da thumbnail' :
-                id === 'imagem' ? 'URL da imagem' :
-                `Digite ${id}`
-              )
+              .setLabel(id === 'thumb' ? 'URL da thumbnail' : `Digite ${id}`)
               .setStyle(TextInputStyle.Paragraph)
-              .setRequired(false)
-              // ✅ AQUI É A CORREÇÃO DO SUMIR
               .setValue(
                 id === 'titulo' ? (atual.title || '') :
                 id === 'desc' ? (atual.description || '') :
@@ -173,36 +268,49 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
                 id === 'thumb' ? (atual.thumbnail || '') :
                 ''
               )
+              .setRequired(false)
           )
         );
 
         return interaction.showModal(modal);
+      }
+
+      if (id === 'enviar') {
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e))
+        });
+
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
     }
 
     if (interaction.isModalSubmit()) {
 
       let atual = session.embeds[session.atual];
+
+      if (interaction.customId === 'autor_modal') {
+        const nome = interaction.fields.getTextInputValue('nome');
+        const icon = interaction.fields.getTextInputValue('icon');
+
+        atual.author = {
+          nome,
+          icon
+        };
+
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
       const valor = interaction.fields.getTextInputValue('input');
 
       if (interaction.customId === 'titulo') {
-        if (valor) {
-          if (atual.title === 'Novo Embed') {
-            atual.title = valor;
-          } else {
-            atual.title = (atual.title || '') + '\n' + valor;
-          }
-        }
+        if (valor) atual.title = valor;
       }
 
       if (interaction.customId === 'desc') {
-        if (valor) {
-          if (atual.description === 'Lembre-se que seu Embed não pode ser vazio!') {
-            atual.description = valor;
-          } else {
-            atual.description = (atual.description || '') + '\n' + valor;
-          }
-        }
+        if (valor) atual.description = valor;
       }
 
       if (interaction.customId === 'imagem') {
@@ -258,6 +366,13 @@ function gerarMenu(userId) {
             value:`${i}`
           }))
         )
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
 }
