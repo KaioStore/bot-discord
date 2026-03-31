@@ -90,31 +90,25 @@ client.on('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // ✅ CORREÇÃO DO "APLICATIVO NÃO RESPONDEU"
+    // ✅ CORREÇÃO: só defer em comando
     if (interaction.isChatInputCommand()) {
       if (!interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ ephemeral: true });
       }
     }
 
-    if (interaction.isButton() || interaction.isStringSelectMenu()) {
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferUpdate();
-      }
-    }
-
     // ===== GERENCIAR BOTÕES =====
     if (interaction.isButton() && interaction.customId.startsWith('delete_btn_')) {
       const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.editReply({ content: 'Sessão perdida.', ephemeral: true });
+      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
 
       const index = Number(interaction.customId.split('_')[2]);
       if (!session.buttons[index]) {
-        return interaction.editReply({ content: 'Botão inválido.', ephemeral: true });
+        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
       }
 
       session.buttons.splice(index, 1);
-      return interaction.editReply({ content: 'Botão removido!', ephemeral: true });
+      return interaction.reply({ content: 'Botão removido!', ephemeral: true });
     }
 
     if (interaction.isButton() && interaction.customId.startsWith('edit_btn_')) {
@@ -122,7 +116,7 @@ client.on('interactionCreate', async (interaction) => {
       const session = embedSessions[interaction.user.id];
 
       if (!session || !session.buttons[index]) {
-        return interaction.editReply({ content: 'Botão inválido.', ephemeral: true });
+        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
       }
 
       const btn = session.buttons[index];
@@ -153,10 +147,10 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.isButton() && interaction.customId === 'gerenciar_botoes') {
       const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.editReply({ content: 'Sessão perdida.', ephemeral: true });
+      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
 
       if (session.buttons.length === 0) {
-        return interaction.editReply({ content: 'Você não tem botões.', ephemeral: true });
+        return interaction.reply({ content: 'Você não tem botões.', ephemeral: true });
       }
 
       const rows = session.buttons.map((btn, i) =>
@@ -172,7 +166,7 @@ client.on('interactionCreate', async (interaction) => {
         )
       );
 
-      return interaction.editReply({
+      return interaction.reply({
         content: 'Gerenciar botões:',
         components: rows,
         ephemeral: true
@@ -181,14 +175,14 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.editReply({ content: 'Sessão perdida.', ephemeral: true });
+      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
 
       const index = Number(interaction.customId.split('_')[1]);
       const btn = session.buttons[index];
 
-      if (!btn) return interaction.editReply({ content: 'Botão inválido.', ephemeral: true });
+      if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
 
-      return interaction.editReply({
+      return interaction.reply({
         embeds: [
           new EmbedBuilder()
             .setColor('#2b2d31')
@@ -324,7 +318,9 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
       if (id === 'enviar') {
 
-        await interaction.deferReply({ ephemeral: true });
+        if (!interaction.deferred && !interaction.replied) {
+          await interaction.deferReply({ ephemeral: true });
+        }
 
         const rows = [];
         let row = new ActionRowBuilder();
@@ -356,105 +352,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.editReply({ content: 'Enviado!' });
       }
 
-      if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
-
-        if (id === 'autor') {
-          const modal = new ModalBuilder()
-            .setCustomId('autor_modal')
-            .setTitle('Autor');
-
-          modal.addComponents(
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short).setValue(atual.author?.nome || '').setRequired(false)
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setValue(atual.author?.icon || '').setRequired(false)
-            )
-          );
-
-          return interaction.showModal(modal);
-        }
-
-        const modal = new ModalBuilder()
-          .setCustomId(id)
-          .setTitle(`Editar ${id}`);
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('input')
-              .setLabel(
-                id === 'imagem' ? 'URL da imagem' :
-                id === 'thumb' ? 'URL da thumbnail' :
-                `Digite ${id}`
-              )
-              .setStyle(TextInputStyle.Paragraph)
-              .setValue(
-                id === 'titulo' ? (atual.title || '') :
-                id === 'desc' ? (atual.description || '') :
-                id === 'imagem' ? (atual.image || '') :
-                id === 'thumb' ? (atual.thumbnail || '') :
-                ''
-              )
-              .setRequired(false)
-          )
-        );
-
-        return interaction.showModal(modal);
-      }
-    }
-
-    if (interaction.isModalSubmit()) {
-
-      let atual = session.embeds[session.atual];
-
-      if (interaction.customId.startsWith('edit_btn_modal_')) {
-        const index = Number(interaction.customId.split('_')[3]);
-
-        session.buttons[index].label = interaction.fields.getTextInputValue('label');
-        session.buttons[index].valor = interaction.fields.getTextInputValue('valor');
-
-        return interaction.reply({ content: 'Botão editado!', ephemeral: true });
-      }
-
-      if (interaction.customId === 'criar_botao') {
-        const label = interaction.fields.getTextInputValue('label');
-        const valor = interaction.fields.getTextInputValue('valor');
-        let cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
-
-        let style = ButtonStyle.Secondary;
-        if (cor === 'azul') style = ButtonStyle.Primary;
-        if (cor === 'verde') style = ButtonStyle.Success;
-        if (cor === 'preto') style = ButtonStyle.Secondary;
-
-        session.buttons.push({ label, valor, style });
-
-        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
-      }
-
-      if (interaction.customId === 'autor_modal') {
-        const nome = interaction.fields.getTextInputValue('nome');
-        const icon = interaction.fields.getTextInputValue('icon');
-
-        atual.author = { nome, icon };
-
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
-      const valor = interaction.fields.getTextInputValue('input');
-
-      if (interaction.customId === 'titulo') atual.title = valor;
-      if (interaction.customId === 'desc') atual.description = valor;
-      if (interaction.customId === 'imagem') atual.image = valor;
-      if (interaction.customId === 'thumb') atual.thumbnail = valor;
-
-      return interaction.update({
-        embeds: [montarEmbed(atual)],
-        components: gerarEditor()
-      });
     }
 
   } catch (err) {
