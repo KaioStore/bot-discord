@@ -135,62 +135,8 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     let atual = session.embeds[session.atual];
 
-    if (interaction.isStringSelectMenu()) {
-      session.atual = Number(interaction.values[0]);
-
-      return interaction.update({
-        embeds: [montarEmbed(session.embeds[session.atual])],
-        components: gerarMenu(interaction.user.id)
-      });
-    }
-
     if (interaction.isButton()) {
       const id = interaction.customId;
-
-      if (id === 'add_embed') {
-        session.embeds.push({
-          title: 'Novo Embed',
-          description: 'Lembre-se que seu Embed não pode ser vazio!'
-        });
-        session.atual = session.embeds.length - 1;
-
-        return interaction.update({
-          embeds: [montarEmbed(session.embeds[session.atual])],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
-      if (id === 'delete') {
-        session.embeds.splice(session.atual, 1);
-
-        if (session.embeds.length === 0) {
-          session.embeds.push({
-            title: 'Novo Embed',
-            description: 'Lembre-se que seu Embed não pode ser vazio!'
-          });
-        }
-
-        session.atual = 0;
-
-        return interaction.update({
-          embeds: [montarEmbed(session.embeds[0])],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
-      if (id === 'edit') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
-      if (id === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
 
       if (id === 'add_button') {
         const modal = new ModalBuilder()
@@ -203,17 +149,19 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
               .setCustomId('label')
               .setLabel('Nome do botão')
               .setStyle(TextInputStyle.Short)
+              .setRequired(true)
           ),
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('valor')
               .setLabel('Mensagem ou link')
               .setStyle(TextInputStyle.Paragraph)
+              .setRequired(true)
           ),
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('cor')
-              .setLabel('Cor: azul, verde, cinza, vermelho')
+              .setLabel('Cor: azul, verde, cinza (preto)')
               .setStyle(TextInputStyle.Short)
               .setRequired(false)
           )
@@ -224,33 +172,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
       if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
 
-        if (id === 'autor') {
-          const modal = new ModalBuilder()
-            .setCustomId('autor_modal')
-            .setTitle('Autor');
-
-          modal.addComponents(
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('nome')
-                .setLabel('Nome do autor')
-                .setStyle(TextInputStyle.Short)
-                .setValue(atual.author?.nome || '')
-                .setRequired(false)
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('icon')
-                .setLabel('URL da imagem')
-                .setStyle(TextInputStyle.Short)
-                .setValue(atual.author?.icon || '')
-                .setRequired(false)
-            )
-          );
-
-          return interaction.showModal(modal);
-        }
-
         const modal = new ModalBuilder()
           .setCustomId(id)
           .setTitle(`Editar ${id}`);
@@ -259,7 +180,11 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(id === 'thumb' ? 'URL da thumbnail' : `Digite ${id}`)
+              .setLabel(
+                id === 'imagem' ? 'URL da imagem' :
+                id === 'thumb' ? 'URL da thumbnail' :
+                `Digite ${id}`
+              )
               .setStyle(TextInputStyle.Paragraph)
               .setValue(
                 id === 'titulo' ? (atual.title || '') :
@@ -274,52 +199,33 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         return interaction.showModal(modal);
       }
-
-      if (id === 'enviar') {
-        await interaction.channel.send({
-          embeds: session.embeds.map(e => montarEmbed(e))
-        });
-
-        return interaction.reply({ content: 'Enviado!', ephemeral: true });
-      }
     }
 
     if (interaction.isModalSubmit()) {
 
-      let atual = session.embeds[session.atual];
+      if (interaction.customId === 'criar_botao') {
+        const label = interaction.fields.getTextInputValue('label');
+        const valor = interaction.fields.getTextInputValue('valor');
+        let cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
 
-      if (interaction.customId === 'autor_modal') {
-        const nome = interaction.fields.getTextInputValue('nome');
-        const icon = interaction.fields.getTextInputValue('icon');
+        let style = ButtonStyle.Secondary;
 
-        atual.author = {
-          nome,
-          icon
-        };
+        if (cor === 'azul') style = ButtonStyle.Primary;
+        if (cor === 'verde') style = ButtonStyle.Success;
+        if (cor === 'cinza' || cor === 'preto') style = ButtonStyle.Secondary;
 
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
+        session.buttons.push({ label, valor, style });
+
+        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
+      let atual = session.embeds[session.atual];
       const valor = interaction.fields.getTextInputValue('input');
 
-      if (interaction.customId === 'titulo') {
-        if (valor) atual.title = valor;
-      }
-
-      if (interaction.customId === 'desc') {
-        if (valor) atual.description = valor;
-      }
-
-      if (interaction.customId === 'imagem') {
-        if (valor) atual.image = valor;
-      }
-
-      if (interaction.customId === 'thumb') {
-        if (valor) atual.thumbnail = valor;
-      }
+      if (interaction.customId === 'titulo') atual.title = valor;
+      if (interaction.customId === 'desc') atual.description = valor;
+      if (interaction.customId === 'imagem') atual.image = valor;
+      if (interaction.customId === 'thumb') atual.thumbnail = valor;
 
       return interaction.update({
         embeds: [montarEmbed(atual)],
@@ -350,46 +256,6 @@ function montarEmbed(data) {
   }
 
   return embed;
-}
-
-function gerarMenu(userId) {
-  const session = embedSessions[userId];
-
-  return [
-    new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('select')
-        .setPlaceholder('Selecionar embed')
-        .addOptions(
-          session.embeds.map((e,i)=>({
-            label:`Embed ${i+1}`,
-            value:`${i}`
-          }))
-        )
-    ),
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
-    )
-  ];
-}
-
-function gerarEditor() {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
-    ),
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
-    )
-  ];
 }
 
 // ===== WEB =====
