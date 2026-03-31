@@ -90,18 +90,31 @@ client.on('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
+    // ✅ CORREÇÃO DO "APLICATIVO NÃO RESPONDEU"
+    if (interaction.isChatInputCommand()) {
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ ephemeral: true });
+      }
+    }
+
+    if (interaction.isButton() || interaction.isStringSelectMenu()) {
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferUpdate();
+      }
+    }
+
     // ===== GERENCIAR BOTÕES =====
     if (interaction.isButton() && interaction.customId.startsWith('delete_btn_')) {
       const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
+      if (!session) return interaction.editReply({ content: 'Sessão perdida.', ephemeral: true });
 
       const index = Number(interaction.customId.split('_')[2]);
       if (!session.buttons[index]) {
-        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
+        return interaction.editReply({ content: 'Botão inválido.', ephemeral: true });
       }
 
       session.buttons.splice(index, 1);
-      return interaction.reply({ content: 'Botão removido!', ephemeral: true });
+      return interaction.editReply({ content: 'Botão removido!', ephemeral: true });
     }
 
     if (interaction.isButton() && interaction.customId.startsWith('edit_btn_')) {
@@ -109,7 +122,7 @@ client.on('interactionCreate', async (interaction) => {
       const session = embedSessions[interaction.user.id];
 
       if (!session || !session.buttons[index]) {
-        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
+        return interaction.editReply({ content: 'Botão inválido.', ephemeral: true });
       }
 
       const btn = session.buttons[index];
@@ -140,10 +153,10 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.isButton() && interaction.customId === 'gerenciar_botoes') {
       const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
+      if (!session) return interaction.editReply({ content: 'Sessão perdida.', ephemeral: true });
 
       if (session.buttons.length === 0) {
-        return interaction.reply({ content: 'Você não tem botões.', ephemeral: true });
+        return interaction.editReply({ content: 'Você não tem botões.', ephemeral: true });
       }
 
       const rows = session.buttons.map((btn, i) =>
@@ -159,7 +172,7 @@ client.on('interactionCreate', async (interaction) => {
         )
       );
 
-      return interaction.reply({
+      return interaction.editReply({
         content: 'Gerenciar botões:',
         components: rows,
         ephemeral: true
@@ -168,14 +181,14 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
+      if (!session) return interaction.editReply({ content: 'Sessão perdida.', ephemeral: true });
 
       const index = Number(interaction.customId.split('_')[1]);
       const btn = session.buttons[index];
 
-      if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
+      if (!btn) return interaction.editReply({ content: 'Botão inválido.', ephemeral: true });
 
-      return interaction.reply({
+      return interaction.editReply({
         embeds: [
           new EmbedBuilder()
             .setColor('#2b2d31')
@@ -201,7 +214,7 @@ client.on('interactionCreate', async (interaction) => {
           };
         }
 
-        return interaction.reply({
+        return interaction.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor('#2b2d31')
@@ -215,12 +228,10 @@ client.on('interactionCreate', async (interaction) => {
 
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) {
-          return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+          return interaction.editReply({ content: 'Só administradores.', ephemeral: true });
         }
 
         const texto = interaction.options.getString('texto');
-
-        await interaction.deferReply({ ephemeral: true });
 
         db.total++;
         db.pedidos++;
