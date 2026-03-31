@@ -71,7 +71,7 @@ client.on('ready', () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 BOTÃO CORRIGIDO (SEM "Mensagem")
+    // ===== BOTÃO DE MENSAGEM =====
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -91,7 +91,7 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ===== GERENCIAR BOTÕES =====
+    // ===== GERENCIAR BOTÕES (ADICIONADO) =====
     if (interaction.isButton() && interaction.customId === 'gerenciar_botoes') {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -120,6 +120,7 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
+    // ===== REMOVER BOTÃO (ADICIONADO) =====
     if (interaction.isButton() && interaction.customId.startsWith('delete_btn_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -134,6 +135,7 @@ client.on('interactionCreate', async (interaction) => {
       return interaction.reply({ content: 'Botão removido!', ephemeral: true });
     }
 
+    // ===== EDITAR BOTÃO (ADICIONADO) =====
     if (interaction.isButton() && interaction.customId.startsWith('edit_btn_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -169,6 +171,7 @@ client.on('interactionCreate', async (interaction) => {
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
+    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
@@ -331,10 +334,10 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
           modal.addComponents(
             new ActionRowBuilder().addComponents(
-              new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short).setValue(atual.author?.nome || '').setRequired(false)
+              new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short).setRequired(false)
             ),
             new ActionRowBuilder().addComponents(
-              new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setValue(atual.author?.icon || '').setRequired(false)
+              new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setRequired(false)
             )
           );
 
@@ -349,19 +352,8 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(
-                id === 'imagem' ? 'URL da imagem' :
-                id === 'thumb' ? 'URL da thumbnail' :
-                `Digite ${id}`
-              )
+              .setLabel(`Digite ${id}`)
               .setStyle(TextInputStyle.Paragraph)
-              .setValue(
-                id === 'titulo' ? (atual.title || '') :
-                id === 'desc' ? (atual.description || '') :
-                id === 'imagem' ? (atual.image || '') :
-                id === 'thumb' ? (atual.thumbnail || '') :
-                ''
-              )
               .setRequired(false)
           )
         );
@@ -374,6 +366,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
       let atual = session.embeds[session.atual];
 
+      // ===== EDITAR BOTÃO (ADICIONADO) =====
       if (interaction.customId.startsWith('edit_btn_modal_')) {
         const index = Number(interaction.customId.split('_')[3]);
 
@@ -391,7 +384,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         let style = ButtonStyle.Secondary;
         if (cor === 'azul') style = ButtonStyle.Primary;
         if (cor === 'verde') style = ButtonStyle.Success;
-        if (cor === 'preto') style = ButtonStyle.Secondary;
 
         session.buttons.push({ label, valor, style });
 
