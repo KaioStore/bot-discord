@@ -63,109 +63,15 @@ function salvar() {
 const embedSessions = {};
 
 // ===== READY =====
-client.on('ready', async () => {
+client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
-
-  client.application.commands.set([
-    {
-      name: 'embed',
-      description: 'Criar embed'
-    },
-    {
-      name: 'avaliar',
-      description: 'Enviar avaliação',
-      options: [
-        {
-          name: 'texto',
-          type: 3,
-          description: 'Texto da avaliação',
-          required: true
-        }
-      ]
-    }
-  ]);
 });
 
 // ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // ===== GERENCIAR BOTÕES =====
-    if (interaction.isButton() && interaction.customId.startsWith('delete_btn_')) {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
-
-      const index = Number(interaction.customId.split('_')[2]);
-      if (!session.buttons[index]) {
-        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
-      }
-
-      session.buttons.splice(index, 1);
-      return interaction.reply({ content: 'Botão removido!', ephemeral: true });
-    }
-
-    if (interaction.isButton() && interaction.customId.startsWith('edit_btn_')) {
-      const index = Number(interaction.customId.split('_')[2]);
-      const session = embedSessions[interaction.user.id];
-
-      if (!session || !session.buttons[index]) {
-        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
-      }
-
-      const btn = session.buttons[index];
-
-      const modal = new ModalBuilder()
-        .setCustomId(`edit_btn_modal_${index}`)
-        .setTitle('Editar botão');
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('label')
-            .setLabel('Nome do botão')
-            .setStyle(TextInputStyle.Short)
-            .setValue(btn.label)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('valor')
-            .setLabel('Mensagem ou link')
-            .setStyle(TextInputStyle.Paragraph)
-            .setValue(btn.valor)
-        )
-      );
-
-      return interaction.showModal(modal);
-    }
-
-    if (interaction.isButton() && interaction.customId === 'gerenciar_botoes') {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
-
-      if (session.buttons.length === 0) {
-        return interaction.reply({ content: 'Você não tem botões.', ephemeral: true });
-      }
-
-      const rows = session.buttons.map((btn, i) =>
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setLabel(`Editar: ${btn.label}`)
-            .setCustomId(`edit_btn_${i}`)
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
-            .setLabel('Remover')
-            .setCustomId(`delete_btn_${i}`)
-            .setStyle(ButtonStyle.Danger)
-        )
-      );
-
-      return interaction.reply({
-        content: 'Gerenciar botões:',
-        components: rows,
-        ephemeral: true
-      });
-    }
-
+    // 🔥 BOTÃO CORRIGIDO (SEM "Mensagem")
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -185,14 +91,11 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    const isAdmin = interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator);
+    const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
-    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
-
-        await interaction.deferReply({ ephemeral: true });
 
         if (!embedSessions[interaction.user.id]) {
           embedSessions[interaction.user.id] = {
@@ -205,14 +108,15 @@ client.on('interactionCreate', async (interaction) => {
           };
         }
 
-        return interaction.editReply({
+        return interaction.reply({
           embeds: [
             new EmbedBuilder()
               .setColor('#2b2d31')
               .setTitle('Painel de Embed')
               .setDescription('Use os botões abaixo')
           ],
-          components: gerarMenu(interaction.user.id)
+          components: gerarMenu(interaction.user.id),
+          ephemeral: true
         });
       }
 
@@ -248,12 +152,9 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     }
 
     const session = embedSessions[interaction.user.id];
+    if (!session) return;
 
-    if (!session) {
-      if (!interaction.isChatInputCommand()) return;
-    } else {
-      var atual = session.embeds[session.atual];
-    }
+    let atual = session.embeds[session.atual];
 
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
@@ -307,7 +208,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
             new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
           ),
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('cor').setLabel('Cor').setStyle(TextInputStyle.Short).setRequired(false)
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor: azul, verde, cinza, preto').setStyle(TextInputStyle.Short).setRequired(false)
           )
         );
 
@@ -315,7 +216,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
 
       if (id === 'enviar') {
-
         const rows = [];
         let row = new ActionRowBuilder();
 
@@ -397,15 +297,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isModalSubmit()) {
 
       let atual = session.embeds[session.atual];
-
-      if (interaction.customId.startsWith('edit_btn_modal_')) {
-        const index = Number(interaction.customId.split('_')[3]);
-
-        session.buttons[index].label = interaction.fields.getTextInputValue('label');
-        session.buttons[index].valor = interaction.fields.getTextInputValue('valor');
-
-        return interaction.reply({ content: 'Botão editado!', ephemeral: true });
-      }
 
       if (interaction.customId === 'criar_botao') {
         const label = interaction.fields.getTextInputValue('label');
@@ -492,7 +383,6 @@ function gerarMenu(userId) {
       new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('gerenciar_botoes').setLabel('Gerenciar botões').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
