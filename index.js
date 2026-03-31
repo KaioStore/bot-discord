@@ -70,13 +70,26 @@ client.on('ready', () => {
 // ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
   try {
+
+    // 🔥 RESOLVE ERRO "INTERAÇÃO FALHOU"
+    if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
+      const session = embedSessions[interaction.user.id];
+      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
+
+      const index = Number(interaction.customId.split('_')[1]);
+      const btn = session.buttons[index];
+
+      if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
+
+      return interaction.reply({ content: btn.valor, ephemeral: true });
+    }
+
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
 
-        // NÃO APAGA MAIS OS DADOS
         if (!embedSessions[interaction.user.id]) {
           embedSessions[interaction.user.id] = {
             embeds: [{
@@ -286,6 +299,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         let style = ButtonStyle.Secondary;
         if (cor === 'azul') style = ButtonStyle.Primary;
         if (cor === 'verde') style = ButtonStyle.Success;
+        if (cor === 'preto') style = ButtonStyle.Secondary; // 🔥 preto corrigido
 
         session.buttons.push({ label, valor, style });
 
@@ -359,7 +373,7 @@ function gerarMenu(userId) {
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary), // 🔥 preto
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
