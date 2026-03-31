@@ -231,9 +231,11 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     }
 
     const session = embedSessions[interaction.user.id];
-    if (!session) return;
 
-    let atual = session.embeds[session.atual];
+// 🔥 CORREÇÃO PRA NÃO QUEBRAR COMANDOS
+if (!session && !interaction.isChatInputCommand()) return;
+
+let atual = session?.embeds?.[session?.atual];
 
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
