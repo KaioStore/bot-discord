@@ -90,112 +90,12 @@ client.on('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // ✅ CORREÇÃO: só defer em comando
-    if (interaction.isChatInputCommand()) {
-      if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: true });
-      }
-    }
-
-    // ===== GERENCIAR BOTÕES =====
-    if (interaction.isButton() && interaction.customId.startsWith('delete_btn_')) {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
-
-      const index = Number(interaction.customId.split('_')[2]);
-      if (!session.buttons[index]) {
-        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
-      }
-
-      session.buttons.splice(index, 1);
-      return interaction.reply({ content: 'Botão removido!', ephemeral: true });
-    }
-
-    if (interaction.isButton() && interaction.customId.startsWith('edit_btn_')) {
-      const index = Number(interaction.customId.split('_')[2]);
-      const session = embedSessions[interaction.user.id];
-
-      if (!session || !session.buttons[index]) {
-        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
-      }
-
-      const btn = session.buttons[index];
-
-      const modal = new ModalBuilder()
-        .setCustomId(`edit_btn_modal_${index}`)
-        .setTitle('Editar botão');
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('label')
-            .setLabel('Nome do botão')
-            .setStyle(TextInputStyle.Short)
-            .setValue(btn.label)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('valor')
-            .setLabel('Mensagem ou link')
-            .setStyle(TextInputStyle.Paragraph)
-            .setValue(btn.valor)
-        )
-      );
-
-      return interaction.showModal(modal);
-    }
-
-    if (interaction.isButton() && interaction.customId === 'gerenciar_botoes') {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
-
-      if (session.buttons.length === 0) {
-        return interaction.reply({ content: 'Você não tem botões.', ephemeral: true });
-      }
-
-      const rows = session.buttons.map((btn, i) =>
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setLabel(`Editar: ${btn.label}`)
-            .setCustomId(`edit_btn_${i}`)
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
-            .setLabel('Remover')
-            .setCustomId(`delete_btn_${i}`)
-            .setStyle(ButtonStyle.Danger)
-        )
-      );
-
-      return interaction.reply({
-        content: 'Gerenciar botões:',
-        components: rows,
-        ephemeral: true
-      });
-    }
-
-    if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
-
-      const index = Number(interaction.customId.split('_')[1]);
-      const btn = session.buttons[index];
-
-      if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
-
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#2b2d31')
-            .setDescription(btn.valor)
-        ],
-        ephemeral: true
-      });
-    }
-
     const isAdmin = interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator);
 
+    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
+      // 🔥 EMBED (SEM DEFER - RESPOSTA RÁPIDA)
       if (interaction.commandName === 'embed') {
         if (!embedSessions[interaction.user.id]) {
           embedSessions[interaction.user.id] = {
@@ -208,7 +108,7 @@ client.on('interactionCreate', async (interaction) => {
           };
         }
 
-        return interaction.editReply({
+        return interaction.reply({
           embeds: [
             new EmbedBuilder()
               .setColor('#2b2d31')
@@ -220,12 +120,15 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
+      // 🔥 AVALIAR (COM DEFER)
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) {
-          return interaction.editReply({ content: 'Só administradores.', ephemeral: true });
+          return interaction.reply({ content: 'Só administradores.', ephemeral: true });
         }
 
         const texto = interaction.options.getString('texto');
+
+        await interaction.deferReply({ ephemeral: true });
 
         db.total++;
         db.pedidos++;
@@ -249,14 +152,13 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
     }
 
+    // ===== RESTO DO SISTEMA =====
     const session = embedSessions[interaction.user.id];
+    if (!session) return;
 
-    if (!session) {
-      if (!interaction.isChatInputCommand()) return;
-    } else {
-      var atual = session.embeds[session.atual];
-    }
+    let atual = session.embeds[session.atual];
 
+    // SELECT
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -266,6 +168,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       });
     }
 
+    // BOTÕES
     if (interaction.isButton()) {
       const id = interaction.customId;
 
@@ -317,10 +220,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
 
       if (id === 'enviar') {
-
-        if (!interaction.deferred && !interaction.replied) {
-          await interaction.deferReply({ ephemeral: true });
-        }
+        await interaction.deferReply({ ephemeral: true });
 
         const rows = [];
         let row = new ActionRowBuilder();
@@ -351,7 +251,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         return interaction.editReply({ content: 'Enviado!' });
       }
-
     }
 
   } catch (err) {
