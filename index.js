@@ -71,7 +71,7 @@ client.on('ready', () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 BOTÃO AGORA ENVIA EMBED BONITO
+    // 🔥 BOTÃO CORRIGIDO (SEM "Mensagem")
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -85,7 +85,6 @@ client.on('interactionCreate', async (interaction) => {
         embeds: [
           new EmbedBuilder()
             .setColor('#2b2d31')
-            .setTitle('Mensagem')
             .setDescription(btn.valor)
         ],
         ephemeral: true
