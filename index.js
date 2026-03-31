@@ -88,8 +88,15 @@ client.on('ready', async () => {
 });
 
 // ===== INTERAÇÕES =====
-client.on('interactionCreate', async (interaction) => {
-  try {
+// ⚡ GARANTE QUE NÃO DÁ "APPLICATION DID NOT RESPOND"
+if (!interaction.deferred && !interaction.replied) {
+  if (
+    interaction.isButton() ||
+    interaction.isStringSelectMenu()
+  ) {
+    await interaction.deferUpdate().catch(() => {});
+  }
+}
 
     // ===== NOVO: GERENCIAR BOTÕES =====
 
@@ -190,7 +197,7 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
+    const isAdmin = interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator);
 
     if (interaction.isChatInputCommand()) {
 
