@@ -71,7 +71,7 @@ client.on('ready', () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 RESOLVE ERRO "INTERAÇÃO FALHOU"
+    // 🔥 CORREÇÃO INTERAÇÃO BOTÃO (resolve "falhou")
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -299,7 +299,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         let style = ButtonStyle.Secondary;
         if (cor === 'azul') style = ButtonStyle.Primary;
         if (cor === 'verde') style = ButtonStyle.Success;
-        if (cor === 'preto') style = ButtonStyle.Secondary; // 🔥 preto corrigido
+        if (cor === 'preto') style = ButtonStyle.Secondary;
 
         session.buttons.push({ label, valor, style });
 
@@ -373,7 +373,7 @@ function gerarMenu(userId) {
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary), // 🔥 preto
+      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
