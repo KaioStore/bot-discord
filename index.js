@@ -66,7 +66,6 @@ const embedSessions = {};
 client.on('ready', async () => {
   console.log(`Logado como ${client.user.tag}`);
 
-  // 🔥 REGISTRAR COMANDOS
   await client.application.commands.set([
     {
       name: 'embed',
@@ -88,30 +87,20 @@ client.on('ready', async () => {
 });
 
 // ===== INTERAÇÕES =====
-// ⚡ GARANTE QUE NÃO DÁ "APPLICATION DID NOT RESPOND"
-if (!interaction.deferred && !interaction.replied) {
-  if (
-    interaction.isButton() ||
-    interaction.isStringSelectMenu()
-  ) {
-    await interaction.deferUpdate().catch(() => {});
-  }
-}
+client.on('interactionCreate', async (interaction) => {
+  try {
 
-    // ===== NOVO: GERENCIAR BOTÕES =====
-
+    // ===== GERENCIAR BOTÕES =====
     if (interaction.isButton() && interaction.customId.startsWith('delete_btn_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
 
       const index = Number(interaction.customId.split('_')[2]);
-
       if (!session.buttons[index]) {
         return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
       }
 
       session.buttons.splice(index, 1);
-
       return interaction.reply({ content: 'Botão removido!', ephemeral: true });
     }
 
@@ -177,7 +166,6 @@ if (!interaction.deferred && !interaction.replied) {
       });
     }
 
-    // 🔥 BOTÃO CORRIGIDO (SEU ORIGINAL)
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -202,7 +190,6 @@ if (!interaction.deferred && !interaction.replied) {
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
-
         if (!embedSessions[interaction.user.id]) {
           embedSessions[interaction.user.id] = {
             embeds: [{
@@ -259,12 +246,12 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     const session = embedSessions[interaction.user.id];
 
-// 🔥 CORREÇÃO FINAL
-if (!session) {
-  if (!interaction.isChatInputCommand()) return;
-} else {
-  var atual = session.embeds[session.atual];
-}
+    if (!session) {
+      if (!interaction.isChatInputCommand()) return;
+    } else {
+      var atual = session.embeds[session.atual];
+    }
+
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -325,6 +312,9 @@ if (!session) {
       }
 
       if (id === 'enviar') {
+
+        await interaction.deferReply({ ephemeral: true });
+
         const rows = [];
         let row = new ActionRowBuilder();
 
@@ -352,7 +342,7 @@ if (!session) {
           components: rows
         });
 
-        return interaction.reply({ content: 'Enviado!', ephemeral: true });
+        return interaction.editReply({ content: 'Enviado!' });
       }
 
       if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
@@ -407,7 +397,6 @@ if (!session) {
 
       let atual = session.embeds[session.atual];
 
-      // ===== SALVAR EDIÇÃO DO BOTÃO =====
       if (interaction.customId.startsWith('edit_btn_modal_')) {
         const index = Number(interaction.customId.split('_')[3]);
 
