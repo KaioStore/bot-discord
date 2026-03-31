@@ -63,8 +63,28 @@ function salvar() {
 const embedSessions = {};
 
 // ===== READY =====
-client.on('ready', () => {
+client.on('ready', async () => {
   console.log(`Logado como ${client.user.tag}`);
+
+  // 🔥 REGISTRAR COMANDOS
+  await client.application.commands.set([
+    {
+      name: 'embed',
+      description: 'Criar embed'
+    },
+    {
+      name: 'avaliar',
+      description: 'Enviar avaliação',
+      options: [
+        {
+          name: 'texto',
+          type: 3,
+          description: 'Texto da avaliação',
+          required: true
+        }
+      ]
+    }
+  ]);
 });
 
 // ===== INTERAÇÕES =====
@@ -232,11 +252,12 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     const session = embedSessions[interaction.user.id];
 
-// 🔥 CORREÇÃO PRA NÃO QUEBRAR COMANDOS
-if (!session && !interaction.isChatInputCommand()) return;
-
-let atual = session?.embeds?.[session?.atual];
-
+// 🔥 CORREÇÃO FINAL
+if (!session) {
+  if (!interaction.isChatInputCommand()) return;
+} else {
+  var atual = session.embeds[session.atual];
+}
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
