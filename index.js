@@ -66,7 +66,7 @@ const embedSessions = {};
 client.on('ready', async () => {
   console.log(`Logado como ${client.user.tag}`);
 
-  await client.application.commands.set([
+  client.application.commands.set([
     {
       name: 'embed',
       description: 'Criar embed'
@@ -90,12 +90,109 @@ client.on('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
+    // 🔥 CORREÇÃO DO BUG
+    if (interaction.isChatInputCommand()) {
+      await interaction.deferReply({ ephemeral: true });
+    }
+
+    // ===== GERENCIAR BOTÕES =====
+    if (interaction.isButton() && interaction.customId.startsWith('delete_btn_')) {
+      const session = embedSessions[interaction.user.id];
+      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
+
+      const index = Number(interaction.customId.split('_')[2]);
+      if (!session.buttons[index]) {
+        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
+      }
+
+      session.buttons.splice(index, 1);
+      return interaction.reply({ content: 'Botão removido!', ephemeral: true });
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith('edit_btn_')) {
+      const index = Number(interaction.customId.split('_')[2]);
+      const session = embedSessions[interaction.user.id];
+
+      if (!session || !session.buttons[index]) {
+        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
+      }
+
+      const btn = session.buttons[index];
+
+      const modal = new ModalBuilder()
+        .setCustomId(`edit_btn_modal_${index}`)
+        .setTitle('Editar botão');
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('label')
+            .setLabel('Nome do botão')
+            .setStyle(TextInputStyle.Short)
+            .setValue(btn.label)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('valor')
+            .setLabel('Mensagem ou link')
+            .setStyle(TextInputStyle.Paragraph)
+            .setValue(btn.valor)
+        )
+      );
+
+      return interaction.showModal(modal);
+    }
+
+    if (interaction.isButton() && interaction.customId === 'gerenciar_botoes') {
+      const session = embedSessions[interaction.user.id];
+      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
+
+      if (session.buttons.length === 0) {
+        return interaction.reply({ content: 'Você não tem botões.', ephemeral: true });
+      }
+
+      const rows = session.buttons.map((btn, i) =>
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel(`Editar: ${btn.label}`)
+            .setCustomId(`edit_btn_${i}`)
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setLabel('Remover')
+            .setCustomId(`delete_btn_${i}`)
+            .setStyle(ButtonStyle.Danger)
+        )
+      );
+
+      return interaction.editReply({
+        content: 'Gerenciar botões:',
+        components: rows
+      });
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
+      const session = embedSessions[interaction.user.id];
+      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
+
+      const index = Number(interaction.customId.split('_')[1]);
+      const btn = session.buttons[index];
+
+      if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
+
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#2b2d31')
+            .setDescription(btn.valor)
+        ],
+        ephemeral: true
+      });
+    }
+
     const isAdmin = interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator);
 
-    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
-      // 🔥 EMBED (SEM DEFER - RESPOSTA RÁPIDA)
       if (interaction.commandName === 'embed') {
         if (!embedSessions[interaction.user.id]) {
           embedSessions[interaction.user.id] = {
@@ -108,27 +205,23 @@ client.on('interactionCreate', async (interaction) => {
           };
         }
 
-        return interaction.reply({
+        return interaction.editReply({
           embeds: [
             new EmbedBuilder()
               .setColor('#2b2d31')
               .setTitle('Painel de Embed')
               .setDescription('Use os botões abaixo')
           ],
-          components: gerarMenu(interaction.user.id),
-          ephemeral: true
+          components: gerarMenu(interaction.user.id)
         });
       }
 
-      // 🔥 AVALIAR (COM DEFER)
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) {
-          return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+          return interaction.editReply('Só administradores.');
         }
 
         const texto = interaction.options.getString('texto');
-
-        await interaction.deferReply({ ephemeral: true });
 
         db.total++;
         db.pedidos++;
@@ -152,13 +245,14 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
     }
 
-    // ===== RESTO DO SISTEMA =====
     const session = embedSessions[interaction.user.id];
-    if (!session) return;
 
-    let atual = session.embeds[session.atual];
+    if (!session) {
+      if (!interaction.isChatInputCommand()) return;
+    } else {
+      var atual = session.embeds[session.atual];
+    }
 
-    // SELECT
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -168,7 +262,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       });
     }
 
-    // BOTÕES
     if (interaction.isButton()) {
       const id = interaction.customId;
 
@@ -220,7 +313,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       }
 
       if (id === 'enviar') {
-        await interaction.deferReply({ ephemeral: true });
 
         const rows = [];
         let row = new ActionRowBuilder();
@@ -249,8 +341,108 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           components: rows
         });
 
-        return interaction.editReply({ content: 'Enviado!' });
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
+
+      if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
+
+        if (id === 'autor') {
+          const modal = new ModalBuilder()
+            .setCustomId('autor_modal')
+            .setTitle('Autor');
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short).setValue(atual.author?.nome || '').setRequired(false)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setValue(atual.author?.icon || '').setRequired(false)
+            )
+          );
+
+          return interaction.showModal(modal);
+        }
+
+        const modal = new ModalBuilder()
+          .setCustomId(id)
+          .setTitle(`Editar ${id}`);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('input')
+              .setLabel(
+                id === 'imagem' ? 'URL da imagem' :
+                id === 'thumb' ? 'URL da thumbnail' :
+                `Digite ${id}`
+              )
+              .setStyle(TextInputStyle.Paragraph)
+              .setValue(
+                id === 'titulo' ? (atual.title || '') :
+                id === 'desc' ? (atual.description || '') :
+                id === 'imagem' ? (atual.image || '') :
+                id === 'thumb' ? (atual.thumbnail || '') :
+                ''
+              )
+              .setRequired(false)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+    }
+
+    if (interaction.isModalSubmit()) {
+
+      let atual = session.embeds[session.atual];
+
+      if (interaction.customId.startsWith('edit_btn_modal_')) {
+        const index = Number(interaction.customId.split('_')[3]);
+
+        session.buttons[index].label = interaction.fields.getTextInputValue('label');
+        session.buttons[index].valor = interaction.fields.getTextInputValue('valor');
+
+        return interaction.reply({ content: 'Botão editado!', ephemeral: true });
+      }
+
+      if (interaction.customId === 'criar_botao') {
+        const label = interaction.fields.getTextInputValue('label');
+        const valor = interaction.fields.getTextInputValue('valor');
+        let cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
+
+        let style = ButtonStyle.Secondary;
+        if (cor === 'azul') style = ButtonStyle.Primary;
+        if (cor === 'verde') style = ButtonStyle.Success;
+        if (cor === 'preto') style = ButtonStyle.Secondary;
+
+        session.buttons.push({ label, valor, style });
+
+        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+      }
+
+      if (interaction.customId === 'autor_modal') {
+        const nome = interaction.fields.getTextInputValue('nome');
+        const icon = interaction.fields.getTextInputValue('icon');
+
+        atual.author = { nome, icon };
+
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
+      const valor = interaction.fields.getTextInputValue('input');
+
+      if (interaction.customId === 'titulo') atual.title = valor;
+      if (interaction.customId === 'desc') atual.description = valor;
+      if (interaction.customId === 'imagem') atual.image = valor;
+      if (interaction.customId === 'thumb') atual.thumbnail = valor;
+
+      return interaction.update({
+        embeds: [montarEmbed(atual)],
+        components: gerarEditor()
+      });
     }
 
   } catch (err) {
