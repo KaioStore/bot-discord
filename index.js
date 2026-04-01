@@ -97,28 +97,35 @@ client.on('interactionCreate', async (interaction) => {
 
       if (interaction.commandName === 'embed') {
 
-        if (!embedSessions[interaction.user.id]) {
-          embedSessions[interaction.user.id] = {
-            embeds: [{
-              title: 'Novo Embed',
-              description: 'Lembre-se que seu Embed não pode ser vazio!'
-            }],
-            atual: 0,
-            buttons: []
-          };
-        }
+  if (!isAdmin) {
+    return interaction.reply({
+      content: 'Só administradores podem usar este comando.',
+      ephemeral: true
+    });
+  }
 
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor('#2b2d31')
-              .setTitle('Painel de Embed')
-              .setDescription('Use os botões abaixo')
-          ],
-          components: gerarMenu(interaction.user.id),
-          ephemeral: true
-        });
-      }
+  if (!embedSessions[interaction.user.id]) {
+    embedSessions[interaction.user.id] = {
+      embeds: [{
+        title: 'Novo Embed',
+        description: 'Lembre-se que seu Embed não pode ser vazio!'
+      }],
+      atual: 0,
+      buttons: []
+    };
+  }
+
+  return interaction.reply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor('#2b2d31')
+        .setTitle('Painel de Embed')
+        .setDescription('Use os botões abaixo')
+    ],
+    components: gerarMenu(interaction.user.id),
+    ephemeral: true
+  });
+}
 
       if (interaction.commandName === 'avaliar') {
         if (!isAdmin) {
