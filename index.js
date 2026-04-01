@@ -20,18 +20,16 @@ const {
 
 const fs = require('fs');
 const express = require('express');
-const cors = require('cors');
 
 const app = express();
-app.use(cors());
 
-// ===== CONFIG =====
+// CONFIG
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = '1485623307364466861';
 const GUILD_ID = '1411478770824511652';
 const CANAL_AVALIACOES = '1411493010268753930';
 
-// ===== CLIENT =====
+// CLIENT
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -40,29 +38,19 @@ const client = new Client({
   ]
 });
 
-// ===== BANCO =====
-let db;
-
-try {
-  if (fs.existsSync('./db.json')) {
-    db = JSON.parse(fs.readFileSync('./db.json', 'utf8'));
-  } else {
-    db = { total: 427, pedidos: 458, embeds: {} };
-  }
-} catch {
-  db = { total: 427, pedidos: 458, embeds: {} };
+// BANCO
+let db = { total: 427, pedidos: 458 };
+if (fs.existsSync('./db.json')) {
+  db = JSON.parse(fs.readFileSync('./db.json'));
 }
+const salvar = () => fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
 
-function salvar() {
-  fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
-}
-
-// ===== SESSÕES =====
+// SESSÕES
 const embedSessions = {};
 
-// ===== READY =====
+// READY
 client.once('ready', async () => {
-  console.log(`✅ Logado como ${client.user.tag}`);
+  console.log(`Logado como ${client.user.tag}`);
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
 
@@ -71,28 +59,25 @@ client.once('ready', async () => {
       {
         name: 'avaliar',
         description: 'Enviar avaliação',
-        options: [
-          {
-            name: 'texto',
-            type: 3,
-            description: 'Escreva a avaliação',
-            required: true
-          }
-        ]
+        options: [{
+          name: 'texto',
+          type: 3,
+          required: true
+        }]
       },
       {
         name: 'embed',
-        description: 'Abrir painel embed'
+        description: 'Criar embed'
       }
     ]
   });
 });
 
-// ===== INTERAÇÕES =====
+// INTERAÇÕES
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 BOTÕES DE MENSAGEM
+    // BOTÃO GLOBAL
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       return interaction.reply({
         content: interaction.customId.slice(4),
@@ -102,7 +87,7 @@ client.on('interactionCreate', async (interaction) => {
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
-    // ===== SLASH =====
+    // COMANDOS
     if (interaction.isChatInputCommand()) {
 
       // EMBED
@@ -110,11 +95,11 @@ client.on('interactionCreate', async (interaction) => {
         embedSessions[interaction.user.id] = {
           embeds: [{
             title: 'Novo Embed',
-            description: 'Lembre-se que seu Embed não pode ser vazio!'
+            description: 'Edite aqui'
           }],
           atual: 0,
           buttons: [],
-          editandoBtn: null
+          editando: null
         };
 
         return interaction.reply({
@@ -124,11 +109,11 @@ client.on('interactionCreate', async (interaction) => {
         });
       }
 
-      // AVALIAÇÃO (COMPLETA ORIGINAL)
+      // AVALIAÇÃO COMPLETA
       if (interaction.commandName === 'avaliar') {
-        if (!isAdmin) {
-          return interaction.reply({ content: 'Só administradores.', ephemeral: true });
-        }
+        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+
+        await interaction.deferReply({ ephemeral: true });
 
         const texto = interaction.options.getString('texto');
 
@@ -141,16 +126,16 @@ client.on('interactionCreate', async (interaction) => {
           .setTitle('**Avaliação Recebida! 🖤**')
           .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
           .setDescription(`**• Avaliação:** ${texto}
+
 **• Total de avaliações:** ${db.total}
 **• Pedido:** ${db.pedidos}
 
 Esta avaliação foi registrada de forma **anônima**, devido ao sistema de banimento do **FLEE THE FACILITY**, prezamos pelo máximo de segurança possível dos nossos **clientes!**`)
           .setImage('https://cdn.discordapp.com/attachments/1317295856424325130/1317630916574580840/Linha2KPlayer.png');
 
-        const canal = client.channels.cache.get(CANAL_AVALIACOES);
-        if (canal) canal.send({ embeds: [embed] });
+        client.channels.cache.get(CANAL_AVALIACOES)?.send({ embeds: [embed] });
 
-        return interaction.reply({ content: 'Avaliação enviada.', ephemeral: true });
+        return interaction.editReply('Avaliação enviada.');
       }
     }
 
@@ -159,7 +144,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     let atual = session.embeds[session.atual];
 
-    // ===== SELECT =====
+    // SELECT
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -169,35 +154,34 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       });
     }
 
-    // ===== BOTÕES =====
+    // BOTÕES
     if (interaction.isButton()) {
+
       const id = interaction.customId;
 
       if (id === 'add_embed') {
-        session.embeds.push({
-          title: 'Novo Embed',
-          description: 'Novo conteúdo'
-        });
-
+        session.embeds.push({ title: 'Novo Embed', description: 'Edite aqui' });
         session.atual = session.embeds.length - 1;
+      }
 
+      if (id === 'delete') {
+        session.embeds.splice(session.atual, 1);
+        if (session.embeds.length === 0) {
+          session.embeds.push({ title: 'Novo Embed', description: 'Edite aqui' });
+        }
+        session.atual = 0;
+      }
+
+      if (id === 'edit') {
         return interaction.update({
-          embeds: [montarEmbed(session.embeds[session.atual])],
-          components: gerarMenu(interaction.user.id)
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
         });
       }
 
-      if (id === 'delete_embed') {
-        session.embeds.splice(session.atual, 1);
-
-        if (session.embeds.length === 0) {
-          session.embeds.push({ title: 'Novo Embed', description: '...' });
-        }
-
-        session.atual = 0;
-
+      if (id === 'voltar') {
         return interaction.update({
-          embeds: [montarEmbed(session.embeds[0])],
+          embeds: [montarEmbed(atual)],
           components: gerarMenu(interaction.user.id)
         });
       }
@@ -205,62 +189,64 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
-          .setTitle('Adicionar botão');
+          .setTitle('Criar botão');
 
         modal.addComponents(
-          rowInput('label', 'Nome'),
-          rowInput('valor', 'Mensagem ou link'),
-          rowInput('cor', 'Cor: azul, verde, cinza, preto')
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem').setStyle(TextInputStyle.Paragraph)
+          )
         );
 
         return interaction.showModal(modal);
       }
 
-      if (id === 'gerenciar_botoes') {
-        if (session.buttons.length === 0) {
-          return interaction.reply({ content: 'Nenhum botão.', ephemeral: true });
-        }
-
-        const rows = session.buttons.map((b, i) =>
+      if (id === 'gerenciar') {
+        const rows = session.buttons.map((b,i)=>
           new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`edit_btn_${i}`).setLabel(`Editar ${b.label}`).setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`del_btn_${i}`).setLabel('Excluir').setStyle(ButtonStyle.Danger)
+            new ButtonBuilder().setCustomId(`edit_btn_${i}`).setLabel(b.label).setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`del_btn_${i}`).setLabel('Excluir').setStyle(ButtonStyle.Secondary)
           )
         );
 
-        return interaction.reply({ content: 'Gerenciar:', components: rows, ephemeral: true });
-      }
-
-      if (id.startsWith('del_btn_')) {
-        const i = Number(id.split('_')[2]);
-        session.buttons.splice(i, 1);
-        return interaction.reply({ content: 'Removido!', ephemeral: true });
+        return interaction.update({ components: rows });
       }
 
       if (id === 'enviar') {
-        const rows = montarBotoes(session.buttons);
+        const row = new ActionRowBuilder();
 
-        const msg = await interaction.channel.send({
-          embeds: session.embeds.map(e => montarEmbed(e)),
-          components: rows
+        session.buttons.forEach(b=>{
+          row.addComponents(
+            new ButtonBuilder()
+              .setLabel(b.label)
+              .setStyle(ButtonStyle.Primary)
+              .setCustomId(`msg_${b.valor}`)
+          );
         });
 
-        db.embeds[msg.id] = session;
-        salvar();
+        await interaction.channel.send({
+          embeds: session.embeds.map(montarEmbed),
+          components: row.components.length ? [row] : []
+        });
 
-        return interaction.reply({ content: 'Enviado e salvo!', ephemeral: true });
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
+
+      return interaction.update({
+        embeds: [montarEmbed(session.embeds[session.atual])],
+        components: gerarMenu(interaction.user.id)
+      });
     }
 
-    // ===== MODAL =====
+    // MODAL
     if (interaction.isModalSubmit()) {
-
       if (interaction.customId === 'criar_botao') {
-        const label = interaction.fields.getTextInputValue('label');
-        const valor = interaction.fields.getTextInputValue('valor');
-        const cor = interaction.fields.getTextInputValue('cor');
-
-        session.buttons.push({ label, valor, cor });
+        session.buttons.push({
+          label: interaction.fields.getTextInputValue('label'),
+          valor: interaction.fields.getTextInputValue('valor')
+        });
 
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
@@ -271,81 +257,54 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
   }
 });
 
-// ===== FUNÇÕES =====
+// FUNÇÕES
 function montarEmbed(data) {
-  const embed = new EmbedBuilder().setColor('#2b2d31');
-
-  if (data.title) embed.setTitle(data.title);
-  embed.setDescription(data.description || '‎');
-
-  if (data.image) embed.setImage(data.image);
-  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
-
-  return embed;
+  const e = new EmbedBuilder().setColor('#2b2d31');
+  if (data.title) e.setTitle(data.title);
+  if (data.description) e.setDescription(data.description);
+  if (data.image) e.setImage(data.image);
+  if (data.thumbnail) e.setThumbnail(data.thumbnail);
+  if (data.author) e.setAuthor({ name: data.author });
+  return e;
 }
 
-function montarBotoes(btns) {
-  const rows = [];
-  let row = new ActionRowBuilder();
-
-  btns.forEach((b, i) => {
-    let style = ButtonStyle.Primary;
-    if (b.cor === 'verde') style = ButtonStyle.Success;
-    if (b.cor === 'cinza' || b.cor === 'preto') style = ButtonStyle.Secondary;
-
-    row.addComponents(
-      new ButtonBuilder()
-        .setLabel(b.label)
-        .setCustomId(`msg_${b.valor}`)
-        .setStyle(style)
-    );
-
-    if ((i + 1) % 5 === 0) {
-      rows.push(row);
-      row = new ActionRowBuilder();
-    }
-  });
-
-  if (row.components.length) rows.push(row);
-
-  return rows;
-}
-
-function gerarMenu(userId) {
-  const session = embedSessions[userId];
+function gerarMenu(id) {
+  const s = embedSessions[id];
 
   return [
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('select')
-        .setPlaceholder('Selecionar embed')
-        .addOptions(
-          session.embeds.map((e,i)=>({
-            label:`Embed ${i+1}`,
-            value:`${i}`
-          }))
-        )
+        .addOptions(s.embeds.map((_,i)=>({ label:`Embed ${i+1}`, value:`${i}` })))
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('delete_embed').setLabel('Excluir Embed').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('gerenciar_botoes').setLabel('Gerenciar botões').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('add_button').setLabel('Botão').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
 }
 
-function rowInput(id, label) {
-  return new ActionRowBuilder().addComponents(
-    new TextInputBuilder().setCustomId(id).setLabel(label).setStyle(TextInputStyle.Short)
-  );
+function gerarEditor() {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
+    )
+  ];
 }
 
-// ===== WEB =====
-const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Bot online'));
-app.listen(PORT);
+// WEB
+app.get('/', (req, res) => res.send('online'));
+app.listen(process.env.PORT || 3000);
 
-// ===== LOGIN =====
+// LOGIN
 client.login(TOKEN);
