@@ -620,7 +620,6 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
   try {
     console.log('Registrando comandos...');
 
-    await rest.put(
 await rest.put(
   Routes.applicationGuildCommands('1485623307364466861', '1411478770824511652'),
   { body: [] }
