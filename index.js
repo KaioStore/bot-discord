@@ -110,7 +110,7 @@ client.once('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // BOTÕES DE RESPOSTA
+    // 🔥 BOTÕES DE MENSAGEM
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const texto = interaction.customId.split('msg_')[1];
 
@@ -127,14 +127,16 @@ client.on('interactionCreate', async (interaction) => {
 
       if (interaction.commandName === 'embed') {
 
-        embedSessions[interaction.user.id] = {
-          embeds: [{
-            title: 'Novo Embed',
-            description: 'Lembre-se que seu Embed não pode ser vazio!'
-          }],
-          atual: 0,
-          buttons: []
-        };
+        if (!embedSessions[interaction.user.id]) {
+          embedSessions[interaction.user.id] = {
+            embeds: [{
+              title: 'Novo Embed',
+              description: 'Lembre-se que seu Embed não pode ser vazio!'
+            }],
+            atual: 0,
+            buttons: []
+          };
+        }
 
         return interaction.reply({
           embeds: [
@@ -181,6 +183,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     const session = embedSessions[interaction.user.id];
 
+    // 🔥 CORREÇÃO DO ERRO
     if (!session) {
       if (interaction.isButton() || interaction.isStringSelectMenu()) {
         return interaction.reply({
@@ -193,7 +196,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     let atual = session.embeds[session.atual];
 
-    // SELECT
+    // ===== SELECT =====
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
 
@@ -203,10 +206,11 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       });
     }
 
-    // BOTÕES
+    // ===== BOTÕES =====
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      // DELETE EMBED
       if (id === 'delete') {
         session.embeds.splice(session.atual, 1);
 
@@ -225,6 +229,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
+      // ADD EMBED
       if (id === 'add_embed') {
         session.embeds.push({
           title: 'Novo Embed',
@@ -239,37 +244,21 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
-      if (id === 'add_button') {
-        const modal = new ModalBuilder()
-          .setCustomId('criar_botao')
-          .setTitle('Adicionar botão');
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('label').setLabel('Nome do botão').setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
-          )
-        );
-
-        return interaction.showModal(modal);
-      }
-
+      // GERENCIAR BOTÕES
       if (id === 'gerenciar_botoes') {
         if (session.buttons.length === 0) {
           return interaction.reply({ content: 'Nenhum botão criado.', ephemeral: true });
         }
 
-        const rows = session.buttons.map((b, i) =>
+        const rows = session.buttons.map((btn, i) =>
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
               .setCustomId(`editar_btn_${i}`)
-              .setLabel(`Editar ${b.label}`)
+              .setLabel(`Editar ${btn.label}`)
               .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
               .setCustomId(`delete_btn_${i}`)
-              .setLabel(`Excluir`)
+              .setLabel('Excluir')
               .setStyle(ButtonStyle.Danger)
           )
         );
@@ -280,6 +269,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
+      // EDITAR BOTÃO
       if (id.startsWith('editar_btn_')) {
         const index = Number(id.split('_')[2]);
         session.editando = index;
@@ -292,16 +282,25 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         modal.addComponents(
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short).setValue(btn.label)
+            new TextInputBuilder()
+              .setCustomId('label')
+              .setLabel('Nome')
+              .setStyle(TextInputStyle.Short)
+              .setValue(btn.label)
           ),
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph).setValue(btn.valor)
+            new TextInputBuilder()
+              .setCustomId('valor')
+              .setLabel('Mensagem ou link')
+              .setStyle(TextInputStyle.Paragraph)
+              .setValue(btn.valor)
           )
         );
 
         return interaction.showModal(modal);
       }
 
+      // EXCLUIR BOTÃO
       if (id.startsWith('delete_btn_')) {
         const index = Number(id.split('_')[2]);
         session.buttons.splice(index, 1);
@@ -311,41 +310,11 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           components: gerarMenu(interaction.user.id)
         });
       }
-
-      if (id === 'enviar') {
-        const rows = [];
-        let row = new ActionRowBuilder();
-
-        session.buttons.forEach((btn, i) => {
-          if (i % 5 === 0 && i !== 0) {
-            rows.push(row);
-            row = new ActionRowBuilder();
-          }
-
-          if (btn.valor.startsWith('http')) {
-            row.addComponents(
-              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor)
-            );
-          } else {
-            row.addComponents(
-              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Primary).setCustomId(`msg_${btn.valor}`)
-            );
-          }
-        });
-
-        if (row.components.length > 0) rows.push(row);
-
-        await interaction.channel.send({
-          embeds: session.embeds.map(e => montarEmbed(e)),
-          components: rows
-        });
-
-        return interaction.reply({ content: 'Enviado!', ephemeral: true });
-      }
     }
 
-    // MODAL
+    // ===== MODAL =====
     if (interaction.isModalSubmit()) {
+
       let atual = session.embeds[session.atual];
 
       if (interaction.customId === 'criar_botao') {
@@ -394,29 +363,55 @@ function montarEmbed(data) {
   if (data.image) embed.setImage(data.image);
   if (data.thumbnail) embed.setThumbnail(data.thumbnail);
 
+  if (data.author) {
+    embed.setAuthor({
+      name: data.author.nome || '‎',
+      iconURL: data.author.icon || undefined
+    });
+  }
+
   return embed;
 }
 
 function gerarMenu(userId) {
+  const session = embedSessions[userId];
+
   return [
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('select')
         .setPlaceholder('Selecionar embed')
-        .addOptions([{ label: 'Embed 1', value: '0' }])
+        .addOptions(
+          session.embeds.map((e,i)=>({
+            label:`Embed ${i+1}`,
+            value:`${i}`
+          }))
+        )
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('gerenciar_botoes').setLabel('Gerenciar botões').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
 }
 
 function gerarEditor() {
-  return [];
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
+    )
+  ];
 }
 
 // ===== WEB =====
