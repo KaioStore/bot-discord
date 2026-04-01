@@ -110,7 +110,7 @@ client.once('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 BOTÃO GLOBAL (FUNCIONA SEM SESSION)
+    // 🔥 BOTÃO GLOBAL
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const texto = interaction.customId.slice(4);
 
@@ -182,15 +182,15 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     const session = embedSessions[interaction.user.id];
 
-    if (!session) {
-      if (interaction.isButton() || interaction.isStringSelectMenu()) {
-        return interaction.reply({
-          content: 'Sessão expirada. Use /embed novamente.',
-          ephemeral: true
-        });
-      }
-      return;
+    // 🔥 CORREÇÃO (NÃO BLOQUEIA COMANDO)
+    if (!session && (interaction.isButton() || interaction.isStringSelectMenu())) {
+      return interaction.reply({
+        content: 'Sessão expirada. Use /embed novamente.',
+        ephemeral: true
+      });
     }
+
+    if (!session) return;
 
     let atual = session.embeds[session.atual];
 
@@ -207,6 +207,20 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     // ===== BOTÕES =====
     if (interaction.isButton()) {
       const id = interaction.customId;
+
+      if (id === 'edit') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
+      if (id === 'voltar') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
 
       if (id === 'delete') {
         session.embeds.splice(session.atual, 1);
