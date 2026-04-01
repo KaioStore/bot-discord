@@ -430,5 +430,54 @@ const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot online'));
 app.listen(PORT);
 
+const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+
+const commands = [
+  new SlashCommandBuilder()
+    .setName('embed')
+    .setDescription('Abrir painel de embed'),
+
+  new SlashCommandBuilder()
+    .setName('avaliar')
+    .setDescription('Enviar avaliação')
+    .addStringOption(option =>
+      option.setName('texto')
+        .setDescription('Digite a avaliação')
+        .setRequired(true)
+    )
+].map(cmd => cmd.toJSON());
+
+const rest = new REST({ version: '10' }).setToken(TOKEN);
+
+(async () => {
+  try {
+    console.log('🧹 Limpando TUDO...');
+
+    // ❌ REMOVE GLOBAL (principal causa do duplicado)
+    await rest.put(
+      Routes.applicationCommands('1485623307364466861'),
+      { body: [] }
+    );
+
+    // ❌ REMOVE DO SERVIDOR
+    await rest.put(
+      Routes.applicationGuildCommands('1485623307364466861', '1411478770824511652'),
+      { body: [] }
+    );
+
+    console.log('✅ Tudo limpo!');
+
+    // ✅ REGISTRA SÓ 1 VEZ (NO SERVIDOR)
+    await rest.put(
+      Routes.applicationGuildCommands('1485623307364466861', 'SEU_GUILD_ID'),
+      { body: commands }
+    );
+
+    console.log('🚀 Comandos registrados!');
+  } catch (error) {
+    console.error(error);
+  }
+})();
+
 // ===== LOGIN =====
 client.login(TOKEN);
