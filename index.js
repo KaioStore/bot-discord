@@ -38,7 +38,12 @@ const CANAL_AVALIACOES = '1411493010268753930';
 
 // ===== CLIENT =====
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 });
 
 // ===== BANCO =====
@@ -95,7 +100,7 @@ client.once('ready', async () => {
       }
     );
 
-    console.log('✅ Comandos atualizados!');
+    console.log('Comandos atualizados!');
   } catch (err) {
     console.error(err);
   }
@@ -105,17 +110,19 @@ client.once('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // BOTÕES ENVIADOS
+    // BOTÕES DE RESPOSTA
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
-      const texto = interaction.customId.replace('msg_', '');
+      const texto = interaction.customId.split('msg_')[1];
+
       return interaction.reply({
-        embeds: [new EmbedBuilder().setColor('#2b2d31').setDescription(texto)],
+        content: texto,
         ephemeral: true
       });
     }
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
+    // ===== SLASH =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
@@ -142,7 +149,9 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       if (interaction.commandName === 'avaliar') {
-        if (!isAdmin) return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+        if (!isAdmin) {
+          return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+        }
 
         const texto = interaction.options.getString('texto');
 
@@ -171,84 +180,32 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     }
 
     const session = embedSessions[interaction.user.id];
-    if (!session) return;
+
+    if (!session) {
+      if (interaction.isButton() || interaction.isStringSelectMenu()) {
+        return interaction.reply({
+          content: 'Sessão expirada. Use /embed novamente.',
+          ephemeral: true
+        });
+      }
+      return;
+    }
 
     let atual = session.embeds[session.atual];
 
     // SELECT
     if (interaction.isStringSelectMenu()) {
+      session.atual = Number(interaction.values[0]);
 
-      if (interaction.customId === 'select') {
-        session.atual = Number(interaction.values[0]);
-
-        return interaction.update({
-          embeds: [montarEmbed(session.embeds[session.atual])],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
-      if (interaction.customId === 'gerenciar_botoes') {
-        const index = Number(interaction.values[0]);
-        session.botaoEditando = index;
-
-        return interaction.update({
-          content: `Gerenciando botão: ${session.buttons[index].label}`,
-          components: gerarGerenciarBotoes()
-        });
-      }
+      return interaction.update({
+        embeds: [montarEmbed(session.embeds[session.atual])],
+        components: gerarMenu(interaction.user.id)
+      });
     }
 
     // BOTÕES
     if (interaction.isButton()) {
       const id = interaction.customId;
-
-      if (id === 'gerenciar') {
-        if (session.buttons.length === 0) {
-          return interaction.reply({ content: 'Nenhum botão criado.', ephemeral: true });
-        }
-
-        return interaction.update({
-          components: [
-            new ActionRowBuilder().addComponents(
-              new StringSelectMenuBuilder()
-                .setCustomId('gerenciar_botoes')
-                .setPlaceholder('Escolha um botão')
-                .addOptions(
-                  session.buttons.map((b, i) => ({
-                    label: b.label,
-                    value: `${i}`
-                  }))
-                )
-            )
-          ]
-        });
-      }
-
-      if (id === 'editar_botao') {
-        const modal = new ModalBuilder()
-          .setCustomId('editar_botao_modal')
-          .setTitle('Editar botão');
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem/Link').setStyle(TextInputStyle.Paragraph)
-          )
-        );
-
-        return interaction.showModal(modal);
-      }
-
-      if (id === 'excluir_botao') {
-        session.buttons.splice(session.botaoEditando, 1);
-
-        return interaction.update({
-          content: 'Botão excluído!',
-          components: gerarMenu(interaction.user.id)
-        });
-      }
 
       if (id === 'delete') {
         session.embeds.splice(session.atual, 1);
@@ -282,20 +239,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
-      if (id === 'edit') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
-      }
-
-      if (id === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
-
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
@@ -303,7 +246,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         modal.addComponents(
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
+            new TextInputBuilder().setCustomId('label').setLabel('Nome do botão').setStyle(TextInputStyle.Short)
           ),
           new ActionRowBuilder().addComponents(
             new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
@@ -311,6 +254,62 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         );
 
         return interaction.showModal(modal);
+      }
+
+      if (id === 'gerenciar_botoes') {
+        if (session.buttons.length === 0) {
+          return interaction.reply({ content: 'Nenhum botão criado.', ephemeral: true });
+        }
+
+        const rows = session.buttons.map((b, i) =>
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`editar_btn_${i}`)
+              .setLabel(`Editar ${b.label}`)
+              .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+              .setCustomId(`delete_btn_${i}`)
+              .setLabel(`Excluir`)
+              .setStyle(ButtonStyle.Danger)
+          )
+        );
+
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: rows
+        });
+      }
+
+      if (id.startsWith('editar_btn_')) {
+        const index = Number(id.split('_')[2]);
+        session.editando = index;
+
+        const btn = session.buttons[index];
+
+        const modal = new ModalBuilder()
+          .setCustomId('editar_botao')
+          .setTitle('Editar botão');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short).setValue(btn.label)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph).setValue(btn.valor)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      if (id.startsWith('delete_btn_')) {
+        const index = Number(id.split('_')[2]);
+        session.buttons.splice(index, 1);
+
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
       }
 
       if (id === 'enviar') {
@@ -347,7 +346,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     // MODAL
     if (interaction.isModalSubmit()) {
-
       let atual = session.embeds[session.atual];
 
       if (interaction.customId === 'criar_botao') {
@@ -359,18 +357,30 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
-      if (interaction.customId === 'editar_botao_modal') {
+      if (interaction.customId === 'editar_botao') {
         const label = interaction.fields.getTextInputValue('label');
         const valor = interaction.fields.getTextInputValue('valor');
 
-        session.buttons[session.botaoEditando] = { label, valor };
+        session.buttons[session.editando] = { label, valor };
 
-        return interaction.reply({ content: 'Botão atualizado!', ephemeral: true });
+        return interaction.reply({ content: 'Botão editado!', ephemeral: true });
       }
+
+      const valor = interaction.fields.getTextInputValue('input');
+
+      if (interaction.customId === 'titulo') atual.title = valor;
+      if (interaction.customId === 'desc') atual.description = valor;
+      if (interaction.customId === 'imagem') atual.image = valor;
+      if (interaction.customId === 'thumb') atual.thumbnail = valor;
+
+      return interaction.update({
+        embeds: [montarEmbed(atual)],
+        components: gerarEditor()
+      });
     }
 
   } catch (err) {
-    console.error('ERRO:', err);
+    console.error(err);
   }
 });
 
@@ -388,50 +398,25 @@ function montarEmbed(data) {
 }
 
 function gerarMenu(userId) {
-  const session = embedSessions[userId];
-
   return [
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('select')
         .setPlaceholder('Selecionar embed')
-        .addOptions(
-          session.embeds.map((e,i)=>({
-            label:`Embed ${i+1}`,
-            value:`${i}`
-          }))
-        )
+        .addOptions([{ label: 'Embed 1', value: '0' }])
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('gerenciar').setLabel('Gerenciar Botões').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('gerenciar_botoes').setLabel('Gerenciar botões').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
 }
 
 function gerarEditor() {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary)
-    ),
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
-    )
-  ];
-}
-
-function gerarGerenciarBotoes() {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('editar_botao').setLabel('Editar').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('excluir_botao').setLabel('Excluir').setStyle(ButtonStyle.Danger)
-    )
-  ];
+  return [];
 }
 
 // ===== WEB =====
