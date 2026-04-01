@@ -73,16 +73,19 @@ client.once('ready', async () => {
   const rest = new REST({ version: '10' }).setToken(TOKEN);
 
   try {
-    console.log('Resetando comandos antigos...');
+    console.log('🧹 Limpando comandos globais...');
+    await rest.put(
+      Routes.applicationCommands(CLIENT_ID),
+      { body: [] }
+    );
 
-    // 🔥 LIMPA TODOS OS COMANDOS (resolve duplicação)
+    console.log('🧹 Limpando comandos da guild...');
     await rest.put(
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: [] }
     );
 
-    console.log('Registrando novos comandos...');
-
+    console.log('🚀 Registrando novos comandos...');
     await rest.put(
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       {
@@ -107,7 +110,7 @@ client.once('ready', async () => {
       }
     );
 
-    console.log('Comandos atualizados!');
+    console.log('✅ Comandos atualizados!');
   } catch (err) {
     console.error(err);
   }
