@@ -305,3 +305,15 @@ Esta avaliação foi registrada de forma **anônima**...`)
     console.error(err);
   }
 });
+
+// ===== WEB =====
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => res.send('Bot online'));
+
+app.listen(PORT, () => {
+  console.log(`Web rodando na porta ${PORT}`);
+});
+
+// ===== LOGIN =====
+client.login(TOKEN);
