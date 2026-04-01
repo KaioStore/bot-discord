@@ -66,14 +66,22 @@ function salvar() {
 // ===== EMBED SYSTEM =====
 const embedSessions = {};
 
-// ===== READY + DEPLOY (CORRIGIDO) =====
+// ===== READY + DEPLOY (ANTI DUPLICAÇÃO) =====
 client.once('ready', async () => {
   console.log(`Logado como ${client.user.tag}`);
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
 
   try {
-    console.log('Atualizando comandos...');
+    console.log('Resetando comandos antigos...');
+
+    // 🔥 LIMPA TODOS OS COMANDOS (resolve duplicação)
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: [] }
+    );
+
+    console.log('Registrando novos comandos...');
 
     await rest.put(
       Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
@@ -109,22 +117,12 @@ client.once('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 BOTÃO CORRIGIDO (SEM "Mensagem")
+    // 🔥 BOTÕES FUNCIONANDO GLOBAL (SEM SESSION)
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
-
-      const index = Number(interaction.customId.split('_')[1]);
-      const btn = session.buttons[index];
-
-      if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
+      const texto = interaction.customId.split('msg_')[1];
 
       return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#2b2d31')
-            .setDescription(btn.valor)
-        ],
+        content: texto,
         ephemeral: true
       });
     }
@@ -135,16 +133,14 @@ client.on('interactionCreate', async (interaction) => {
 
       if (interaction.commandName === 'embed') {
 
-        if (!embedSessions[interaction.user.id]) {
-          embedSessions[interaction.user.id] = {
-            embeds: [{
-              title: 'Novo Embed',
-              description: 'Lembre-se que seu Embed não pode ser vazio!'
-            }],
-            atual: 0,
-            buttons: []
-          };
-        }
+        embedSessions[interaction.user.id] = {
+          embeds: [{
+            title: 'Novo Embed',
+            description: 'Lembre-se que seu Embed não pode ser vazio!'
+          }],
+          atual: 0,
+          buttons: []
+        };
 
         return interaction.reply({
           embeds: [
@@ -206,6 +202,24 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      if (id === 'delete') {
+        session.embeds.splice(session.atual, 1);
+
+        if (session.embeds.length === 0) {
+          session.embeds.push({
+            title: 'Novo Embed',
+            description: 'Lembre-se que seu Embed não pode ser vazio!'
+          });
+        }
+
+        session.atual = 0;
+
+        return interaction.update({
+          embeds: [montarEmbed(session.embeds[0])],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
       if (id === 'add_embed') {
         session.embeds.push({
           title: 'Novo Embed',
@@ -244,9 +258,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           ),
           new ActionRowBuilder().addComponents(
             new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('cor').setLabel('Cor: azul, verde, cinza, preto').setStyle(TextInputStyle.Short).setRequired(false)
           )
         );
 
@@ -269,7 +280,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
             );
           } else {
             row.addComponents(
-              new ButtonBuilder().setLabel(btn.label).setStyle(btn.style).setCustomId(`msg_${i}`)
+              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Primary).setCustomId(`msg_${btn.valor}`)
             );
           }
         });
@@ -283,53 +294,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
-
-      if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
-
-        if (id === 'autor') {
-          const modal = new ModalBuilder()
-            .setCustomId('autor_modal')
-            .setTitle('Autor');
-
-          modal.addComponents(
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short).setValue(atual.author?.nome || '').setRequired(false)
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setValue(atual.author?.icon || '').setRequired(false)
-            )
-          );
-
-          return interaction.showModal(modal);
-        }
-
-        const modal = new ModalBuilder()
-          .setCustomId(id)
-          .setTitle(`Editar ${id}`);
-
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('input')
-              .setLabel(
-                id === 'imagem' ? 'URL da imagem' :
-                id === 'thumb' ? 'URL da thumbnail' :
-                `Digite ${id}`
-              )
-              .setStyle(TextInputStyle.Paragraph)
-              .setValue(
-                id === 'titulo' ? (atual.title || '') :
-                id === 'desc' ? (atual.description || '') :
-                id === 'imagem' ? (atual.image || '') :
-                id === 'thumb' ? (atual.thumbnail || '') :
-                ''
-              )
-              .setRequired(false)
-          )
-        );
-
-        return interaction.showModal(modal);
-      }
     }
 
     if (interaction.isModalSubmit()) {
@@ -339,28 +303,10 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
       if (interaction.customId === 'criar_botao') {
         const label = interaction.fields.getTextInputValue('label');
         const valor = interaction.fields.getTextInputValue('valor');
-        let cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
 
-        let style = ButtonStyle.Secondary;
-        if (cor === 'azul') style = ButtonStyle.Primary;
-        if (cor === 'verde') style = ButtonStyle.Success;
-        if (cor === 'preto') style = ButtonStyle.Secondary;
-
-        session.buttons.push({ label, valor, style });
+        session.buttons.push({ label, valor });
 
         return interaction.reply({ content: 'Botão criado!', ephemeral: true });
-      }
-
-      if (interaction.customId === 'autor_modal') {
-        const nome = interaction.fields.getTextInputValue('nome');
-        const icon = interaction.fields.getTextInputValue('icon');
-
-        atual.author = { nome, icon };
-
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarEditor()
-        });
       }
 
       const valor = interaction.fields.getTextInputValue('input');
@@ -390,13 +336,6 @@ function montarEmbed(data) {
 
   if (data.image) embed.setImage(data.image);
   if (data.thumbnail) embed.setThumbnail(data.thumbnail);
-
-  if (data.author) {
-    embed.setAuthor({
-      name: data.author.nome || '‎',
-      iconURL: data.author.icon || undefined
-    });
-  }
 
   return embed;
 }
@@ -432,8 +371,7 @@ function gerarEditor() {
       new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary)
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
