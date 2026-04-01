@@ -15,51 +15,6 @@ const commands = [
         .setRequired(true)
     ),
 
-  // ================= GASTAR =================
-  new SlashCommandBuilder()
-    .setName('gastar')
-    .setDescription('Adicionar gasto')
-    .addUserOption(option =>
-      option.setName('usuario')
-        .setDescription('Usuário')
-        .setRequired(true)
-    )
-    .addNumberOption(option =>
-      option.setName('valor')
-        .setDescription('Valor')
-        .setRequired(true)
-    ),
-
-  // ================= REMOVER GASTO =================
-  new SlashCommandBuilder()
-    .setName('removergasto')
-    .setDescription('Remover gasto')
-    .addUserOption(option =>
-      option.setName('usuario')
-        .setDescription('Usuário')
-        .setRequired(true)
-    )
-    .addNumberOption(option =>
-      option.setName('valor')
-        .setDescription('Valor')
-        .setRequired(true)
-    ),
-
-  // ================= SALDO =================
-  new SlashCommandBuilder()
-    .setName('saldo')
-    .setDescription('Ver saldo')
-    .addUserOption(option =>
-      option.setName('usuario')
-        .setDescription('Usuário')
-        .setRequired(false)
-    ),
-
-  // ================= RANK =================
-  new SlashCommandBuilder()
-    .setName('rank')
-    .setDescription('Ranking de gastos'),
-
   // 🔥 EMBED (AGORA CERTO)
   new SlashCommandBuilder()
     .setName('embed')
