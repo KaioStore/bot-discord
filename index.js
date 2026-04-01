@@ -71,7 +71,7 @@ client.on('ready', () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // ===== BOTÃO DE MENSAGEM =====
+    // 🔥 BOTÃO CORRIGIDO (SEM "Mensagem")
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const session = embedSessions[interaction.user.id];
       if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
@@ -91,87 +91,8 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ===== GERENCIAR BOTÕES (ADICIONADO) =====
-    if (interaction.isButton() && interaction.customId === 'gerenciar_botoes') {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
-
-      if (session.buttons.length === 0) {
-        return interaction.reply({ content: 'Você não tem botões.', ephemeral: true });
-      }
-
-      const rows = session.buttons.map((btn, i) =>
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setLabel(`Editar: ${btn.label}`)
-            .setCustomId(`edit_btn_${i}`)
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
-            .setLabel('Remover')
-            .setCustomId(`delete_btn_${i}`)
-            .setStyle(ButtonStyle.Danger)
-        )
-      );
-
-      return interaction.reply({
-        content: 'Gerenciar botões:',
-        components: rows,
-        ephemeral: true
-      });
-    }
-
-    // ===== REMOVER BOTÃO (ADICIONADO) =====
-    if (interaction.isButton() && interaction.customId.startsWith('delete_btn_')) {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
-
-      const index = Number(interaction.customId.split('_')[2]);
-      if (!session.buttons[index]) {
-        return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
-      }
-
-      session.buttons.splice(index, 1);
-
-      return interaction.reply({ content: 'Botão removido!', ephemeral: true });
-    }
-
-    // ===== EDITAR BOTÃO (ADICIONADO) =====
-    if (interaction.isButton() && interaction.customId.startsWith('edit_btn_')) {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
-
-      const index = Number(interaction.customId.split('_')[2]);
-      const btn = session.buttons[index];
-
-      if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
-
-      const modal = new ModalBuilder()
-        .setCustomId(`edit_btn_modal_${index}`)
-        .setTitle('Editar botão');
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('label')
-            .setLabel('Nome do botão')
-            .setStyle(TextInputStyle.Short)
-            .setValue(btn.label)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('valor')
-            .setLabel('Mensagem ou link')
-            .setStyle(TextInputStyle.Paragraph)
-            .setValue(btn.valor)
-        )
-      );
-
-      return interaction.showModal(modal);
-    }
-
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
-    // ===== COMANDOS =====
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'embed') {
@@ -334,10 +255,10 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
           modal.addComponents(
             new ActionRowBuilder().addComponents(
-              new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short).setRequired(false)
+              new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short).setValue(atual.author?.nome || '').setRequired(false)
             ),
             new ActionRowBuilder().addComponents(
-              new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setRequired(false)
+              new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setValue(atual.author?.icon || '').setRequired(false)
             )
           );
 
@@ -352,8 +273,19 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('input')
-              .setLabel(`Digite ${id}`)
+              .setLabel(
+                id === 'imagem' ? 'URL da imagem' :
+                id === 'thumb' ? 'URL da thumbnail' :
+                `Digite ${id}`
+              )
               .setStyle(TextInputStyle.Paragraph)
+              .setValue(
+                id === 'titulo' ? (atual.title || '') :
+                id === 'desc' ? (atual.description || '') :
+                id === 'imagem' ? (atual.image || '') :
+                id === 'thumb' ? (atual.thumbnail || '') :
+                ''
+              )
               .setRequired(false)
           )
         );
@@ -366,16 +298,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
       let atual = session.embeds[session.atual];
 
-      // ===== EDITAR BOTÃO (ADICIONADO) =====
-      if (interaction.customId.startsWith('edit_btn_modal_')) {
-        const index = Number(interaction.customId.split('_')[3]);
-
-        session.buttons[index].label = interaction.fields.getTextInputValue('label');
-        session.buttons[index].valor = interaction.fields.getTextInputValue('valor');
-
-        return interaction.reply({ content: 'Botão editado!', ephemeral: true });
-      }
-
       if (interaction.customId === 'criar_botao') {
         const label = interaction.fields.getTextInputValue('label');
         const valor = interaction.fields.getTextInputValue('valor');
@@ -384,6 +306,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         let style = ButtonStyle.Secondary;
         if (cor === 'azul') style = ButtonStyle.Primary;
         if (cor === 'verde') style = ButtonStyle.Success;
+        if (cor === 'preto') style = ButtonStyle.Secondary;
 
         session.buttons.push({ label, valor, style });
 
@@ -460,7 +383,6 @@ function gerarMenu(userId) {
       new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('gerenciar_botoes').setLabel('Gerenciar botões').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
