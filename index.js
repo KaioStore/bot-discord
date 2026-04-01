@@ -30,7 +30,8 @@ const CANAL_AVALIACOES = '1411493010268753930';
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent // 🔥 ESSENCIAL
   ]
 });
 
@@ -44,53 +45,49 @@ const salvar = () => fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
 // ===== SESSÕES =====
 const embedSessions = {};
 
-// ===== READY =====
+// ===== READY + SLASH AUTO =====
 client.once('ready', async () => {
   console.log(`Logado como ${client.user.tag}`);
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-  try {
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      {
-        body: [
-          {
-            name: 'embed',
-            description: 'Painel de embed'
-          },
-          {
-            name: 'avaliar',
-            description: 'Enviar avaliação',
-            options: [
-              {
-                name: 'texto',
-                type: 3,
-                description: 'Digite a avaliação',
-                required: true
-              }
-            ]
-          }
-        ]
-      }
-    );
+  await rest.put(
+    Routes.applicationCommands(client.user.id),
+    {
+      body: [
+        {
+          name: 'embed',
+          description: 'Painel de embed'
+        },
+        {
+          name: 'avaliar',
+          description: 'Enviar avaliação',
+          options: [
+            {
+              name: 'texto',
+              type: 3,
+              description: 'Digite a avaliação',
+              required: true
+            }
+          ]
+        }
+      ]
+    }
+  );
 
-    console.log('✅ Comandos registrados!');
-  } catch (err) {
-    console.error(err);
-  }
+  console.log('✅ Comandos registrados!');
 });
 
 // ===== INTERAÇÕES =====
 client.on('interactionCreate', async (i) => {
   try {
 
-    // 🔥 BOTÃO GLOBAL
+    // BOTÃO GLOBAL
     if (i.isButton() && i.customId.startsWith('msg_')) {
       return i.reply({ content: i.customId.slice(4), ephemeral: true });
     }
 
-    // 🔥 EDITAR DEPOIS
+    // EDITAR DEPOIS
     if (i.isButton() && i.customId.startsWith('editarEmbed_')) {
       const id = i.customId.split('_')[1];
       if (!db.embedsSalvos[id]) return;
@@ -112,7 +109,10 @@ client.on('interactionCreate', async (i) => {
 
       if (i.commandName === 'embed') {
         embedSessions[i.user.id] = {
-          embeds: [{ title: 'Novo Embed', description: 'Edite aqui' }],
+          embeds: [{
+            title: 'Novo Embed',
+            description: 'Lembre-se que seu Embed não pode ser vazio!'
+          }],
           atual: 0,
           buttons: []
         };
@@ -138,6 +138,7 @@ client.on('interactionCreate', async (i) => {
           .setTitle('**Avaliação Recebida! 🖤**')
           .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
           .setDescription(`**• Avaliação:** ${texto}
+
 **• Total de avaliações:** ${db.total}
 **• Pedido:** ${db.pedidos}
 
@@ -156,13 +157,13 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     let atual = s.embeds[s.atual];
 
-    // ===== SELECT =====
+    // SELECT
     if (i.isStringSelectMenu()) {
       s.atual = Number(i.values[0]);
       return i.update({ embeds: [build(s.embeds[s.atual])], components: menu(i.user.id) });
     }
 
-    // ===== BOTÕES =====
+    // BOTÕES
     if (i.isButton()) {
       const id = i.customId;
 
@@ -257,19 +258,14 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return i.reply({ content: 'Enviado!', ephemeral: true });
       }
 
-      // 🔥 CAMPOS
       if (['titulo','desc','imagem','thumb'].includes(id)) {
         return modalCampo(i, id);
-      }
-
-      if (id === 'autor') {
-        return modalAutor(i);
       }
 
       return i.update({ embeds: [build(atual)], components: menu(i.user.id) });
     }
 
-    // ===== MODAL =====
+    // MODAL
     if (i.isModalSubmit()) {
 
       if (i.customId === 'criar' || i.customId === 'editar') {
@@ -283,18 +279,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         else s.buttons[s.editando] = data;
 
         return i.reply({ content: 'Botão salvo!', ephemeral: true });
-      }
-
-      if (i.customId === 'autor_modal') {
-        atual.author = {
-          nome: i.fields.getTextInputValue('nome'),
-          icon: i.fields.getTextInputValue('icon')
-        };
-
-        return i.update({
-          embeds: [build(atual)],
-          components: editor()
-        });
       }
 
       const val = i.fields.getTextInputValue('input');
@@ -315,19 +299,10 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 // ===== FUNÇÕES =====
 function build(e) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
-
   if (e.title) embed.setTitle(e.title);
-  if (e.description) embed.setDescription(e.description || '‎');
+  embed.setDescription(e.description || '‎');
   if (e.image) embed.setImage(e.image);
   if (e.thumbnail) embed.setThumbnail(e.thumbnail);
-
-  if (e.author) {
-    embed.setAuthor({
-      name: e.author.nome || '‎',
-      iconURL: e.author.icon || undefined
-    });
-  }
-
   return embed;
 }
 
@@ -360,8 +335,7 @@ function editor() {
       new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary)
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
@@ -375,23 +349,6 @@ function modalCampo(i, id) {
   modal.addComponents(
     new ActionRowBuilder().addComponents(
       new TextInputBuilder().setCustomId('input').setLabel('Digite').setStyle(TextInputStyle.Paragraph)
-    )
-  );
-
-  return i.showModal(modal);
-}
-
-function modalAutor(i) {
-  const modal = new ModalBuilder()
-    .setCustomId('autor_modal')
-    .setTitle('Autor');
-
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short)
-    ),
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('icon').setLabel('URL do ícone').setStyle(TextInputStyle.Short).setRequired(false)
     )
   );
 
