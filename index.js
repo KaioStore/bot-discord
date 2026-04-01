@@ -168,7 +168,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
-      if (id === 'clear_buttons') {
+     if (id === 'clear_buttons') {
 
   if (session.buttons.length === 0) {
     return interaction.reply({
@@ -179,9 +179,9 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
   session.buttons = [];
 
-  return interaction.reply({
-    content: 'Todos os botões foram removidos!',
-    ephemeral: true
+  return interaction.update({
+    embeds: [montarEmbed(atual)],
+    components: gerarMenu(interaction.user.id)
   });
 }
 
@@ -418,13 +418,14 @@ function gerarMenu(userId) {
         )
     ),
     new ActionRowBuilder().addComponents(
-  new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
-  new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
-  new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
-  new ButtonBuilder().setCustomId('clear_buttons').setLabel('Remover botões').setStyle(ButtonStyle.Danger),
-  new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
-  new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
-)
+      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('clear_buttons').setLabel('Remover botões').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
 }
