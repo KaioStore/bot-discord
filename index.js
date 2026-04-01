@@ -350,7 +350,7 @@ if (id === 'excluir_botao') {
             )
         ),
         new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('voltar_menu').setLabel('Voltar ao menu').setStyle(ButtonStyle.Secondary)
+          new ButtonBuilder().setCustomId('voltar').setLabel('Voltar ao menu').setStyle(ButtonStyle.Secondary)
         )
       ]
     });
