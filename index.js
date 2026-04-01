@@ -157,17 +157,133 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     let atual = session.embeds[session.atual];
 
     if (interaction.isStringSelectMenu()) {
-      session.atual = Number(interaction.values[0]);
 
-      return interaction.update({
-        embeds: [montarEmbed(session.embeds[session.atual])],
-        components: gerarMenu(interaction.user.id)
-      });
-    }
+  // 🔥 SELECT DOS EMBEDS (o que você já tinha)
+  if (interaction.customId === 'select') {
+    session.atual = Number(interaction.values[0]);
+
+    return interaction.update({
+      embeds: [montarEmbed(session.embeds[session.atual])],
+      components: gerarMenu(interaction.user.id)
+    });
+  }
+
+  // 🔥 SELECT DOS BOTÕES (NOVO)
+  if (interaction.customId === 'select_button') {
+    const index = Number(interaction.values[0]);
+    session.botaoAtual = index;
+
+    const btn = session.buttons[index];
+
+    return interaction.update({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#2b2d31')
+          .setTitle('Gerenciar Botão')
+          .setDescription(`**Nome:** ${btn.label}\n**Valor:** ${btn.valor}`)
+      ],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('editar_botao').setLabel('Editar').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('excluir_botao').setLabel('Excluir').setStyle(ButtonStyle.Danger)
+        ),
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('gerenciar_botoes').setLabel('Voltar').setStyle(ButtonStyle.Secondary)
+        )
+      ]
+    });
+  }
+
+}
 
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+if (id === 'editar_botao') {
+
+  const index = session.botaoAtual;
+  const btn = session.buttons[index];
+
+  const modal = new ModalBuilder()
+    .setCustomId('editar_botao_modal')
+    .setTitle('Editar botão');
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('label')
+        .setLabel('Nome')
+        .setStyle(TextInputStyle.Short)
+        .setValue(btn.label)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('valor')
+        .setLabel('Mensagem ou link')
+        .setStyle(TextInputStyle.Paragraph)
+        .setValue(btn.valor)
+    )
+  );
+
+  return interaction.showModal(modal);
+}
+      
+if (id === 'excluir_botao') {
+
+  const index = session.botaoAtual;
+
+  if (index === undefined) {
+    return interaction.reply({ content: 'Erro.', ephemeral: true });
+  }
+
+  session.buttons.splice(index, 1);
+  session.botaoAtual = undefined; // 🔥 IMPORTANTE
+
+  return interaction.update({
+    embeds: [
+      new EmbedBuilder()
+        .setColor('#2b2d31')
+        .setDescription('Botão excluído!')
+    ],
+    components: gerarMenu(interaction.user.id)
+  });
+}
+      
+      if (id === 'gerenciar_botoes') {
+
+  if (!session.buttons.length) {
+    return interaction.reply({
+      content: 'Você não tem botões ainda.',
+      ephemeral: true
+    });
+  }
+
+  return interaction.update({
+    embeds: [
+      new EmbedBuilder()
+        .setColor('#2b2d31')
+        .setTitle('Gerenciar Botões')
+        .setDescription('Selecione um botão abaixo')
+    ],
+    components: [
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('select_button')
+          .setPlaceholder('Escolher botão')
+          .addOptions(
+            session.buttons.map((btn, i) => ({
+              label: btn.label,
+              value: `${i}`
+            }))
+          )
+      ),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Secondary)
+      )
+    ]
+  });
+}
+      
       if (id === 'delete') {
 
   if (session.embeds.length <= 1) {
@@ -210,12 +326,44 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
-      if (id === 'voltar') {
-        return interaction.update({
-          embeds: [montarEmbed(atual)],
-          components: gerarMenu(interaction.user.id)
-        });
-      }
+     if (id === 'voltar') {
+
+  // Se estiver gerenciando botão, volta pra lista de botões
+  if (session.botaoAtual !== undefined) {
+    session.botaoAtual = undefined;
+
+    return interaction.update({
+      embeds: [
+        new EmbedBuilder()
+          .setColor('#2b2d31')
+          .setTitle('Gerenciar Botões')
+          .setDescription('Selecione um botão abaixo')
+      ],
+      components: [
+        new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('select_button')
+            .setPlaceholder('Escolher botão')
+            .addOptions(
+              session.buttons.map((btn, i) => ({
+                label: btn.label,
+                value: `${i}`
+              }))
+            )
+        ),
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('voltar_menu').setLabel('Voltar ao menu').setStyle(ButtonStyle.Secondary)
+        )
+      ]
+    });
+  }
+
+  // Volta pro menu normal
+  return interaction.update({
+    embeds: [montarEmbed(atual)],
+    components: gerarMenu(interaction.user.id)
+  });
+}
 
       if (id === 'add_button') {
         const modal = new ModalBuilder()
@@ -320,6 +468,22 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
       let atual = session.embeds[session.atual];
 
+      if (interaction.customId === 'editar_botao_modal') {
+
+  const index = session.botaoAtual;
+
+  const label = interaction.fields.getTextInputValue('label');
+  const valor = interaction.fields.getTextInputValue('valor');
+
+  session.buttons[index].label = label;
+  session.buttons[index].valor = valor;
+
+  return interaction.reply({
+    content: 'Botão editado!',
+    ephemeral: true
+  });
+}
+
       if (interaction.customId === 'criar_botao') {
         const label = interaction.fields.getTextInputValue('label');
         const valor = interaction.fields.getTextInputValue('valor');
@@ -404,6 +568,7 @@ function gerarMenu(userId) {
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('gerenciar_botoes').setLabel('Gerenciar botões').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
