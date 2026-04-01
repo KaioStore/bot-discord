@@ -66,63 +66,49 @@ function salvar() {
 // ===== EMBED SYSTEM =====
 const embedSessions = {};
 
-// ===== READY + DEPLOY (ANTI DUPLICAÇÃO) =====
+// ===== READY =====
 client.once('ready', async () => {
   console.log(`Logado como ${client.user.tag}`);
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-  try {
-    console.log('🧹 Limpando comandos globais...');
-    await rest.put(
-      Routes.applicationCommands(CLIENT_ID),
-      { body: [] }
-    );
+  await rest.put(Routes.applicationCommands(CLIENT_ID), { body: [] });
+  await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: [] });
 
-    console.log('🧹 Limpando comandos da guild...');
-    await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: [] }
-    );
+  await rest.put(
+    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+    {
+      body: [
+        {
+          name: 'avaliar',
+          description: 'Enviar avaliação',
+          options: [
+            {
+              name: 'texto',
+              type: 3,
+              description: 'Escreva a avaliação',
+              required: true
+            }
+          ]
+        },
+        {
+          name: 'embed',
+          description: 'Abrir painel embed'
+        }
+      ]
+    }
+  );
 
-    console.log('🚀 Registrando novos comandos...');
-    await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      {
-        body: [
-          {
-            name: 'avaliar',
-            description: 'Enviar avaliação',
-            options: [
-              {
-                name: 'texto',
-                type: 3,
-                description: 'Escreva a avaliação',
-                required: true
-              }
-            ]
-          },
-          {
-            name: 'embed',
-            description: 'Abrir painel embed'
-          }
-        ]
-      }
-    );
-
-    console.log('✅ Comandos atualizados!');
-  } catch (err) {
-    console.error(err);
-  }
+  console.log('Comandos atualizados!');
 });
 
 // ===== INTERAÇÕES =====
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 BOTÕES FUNCIONANDO GLOBAL (SEM SESSION)
+    // 🔥 BOTÕES FUNCIONANDO GLOBAL
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
-      const texto = interaction.customId.split('msg_')[1];
+      const texto = interaction.customId.replace('msg_', '');
 
       return interaction.reply({
         content: texto,
@@ -205,20 +191,24 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      // ❌ EXCLUIR EMBED (CORRIGIDO)
       if (id === 'delete') {
-        session.embeds.splice(session.atual, 1);
 
-        if (session.embeds.length === 0) {
-          session.embeds.push({
-            title: 'Novo Embed',
-            description: 'Lembre-se que seu Embed não pode ser vazio!'
+        if (session.embeds.length === 1) {
+          return interaction.reply({
+            content: 'Você não pode apagar o único embed.',
+            ephemeral: true
           });
         }
 
-        session.atual = 0;
+        session.embeds.splice(session.atual, 1);
+
+        if (session.atual > 0) {
+          session.atual--;
+        }
 
         return interaction.update({
-          embeds: [montarEmbed(session.embeds[0])],
+          embeds: [montarEmbed(session.embeds[session.atual])],
           components: gerarMenu(interaction.user.id)
         });
       }
@@ -250,6 +240,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
+      // ➕ ADD BOTÃO
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
@@ -265,6 +256,53 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         );
 
         return interaction.showModal(modal);
+      }
+
+      // ⚙️ GERENCIAR BOTÕES
+      if (id === 'gerenciar_botoes') {
+
+        if (session.buttons.length === 0) {
+          return interaction.reply({
+            content: 'Nenhum botão criado.',
+            ephemeral: true
+          });
+        }
+
+        const rows = [];
+
+        session.buttons.forEach((b, i) => {
+          rows.push(
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`delbtn_${i}`)
+                .setLabel(`Excluir ${b.label}`)
+                .setStyle(ButtonStyle.Danger)
+            )
+          );
+        });
+
+        return interaction.reply({
+          content: 'Gerencie seus botões:',
+          components: rows,
+          ephemeral: true
+        });
+      }
+
+      // ❌ EXCLUIR BOTÃO
+      if (id.startsWith('delbtn_')) {
+
+        const index = Number(id.split('_')[1]);
+
+        if (!session.buttons[index]) {
+          return interaction.reply({ content: 'Botão não encontrado.', ephemeral: true });
+        }
+
+        session.buttons.splice(index, 1);
+
+        return interaction.update({
+          content: 'Botão removido!',
+          components: []
+        });
       }
 
       if (id === 'enviar') {
@@ -300,8 +338,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     }
 
     if (interaction.isModalSubmit()) {
-
-      let atual = session.embeds[session.atual];
 
       if (interaction.customId === 'criar_botao') {
         const label = interaction.fields.getTextInputValue('label');
@@ -363,6 +399,7 @@ function gerarMenu(userId) {
       new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('gerenciar_botoes').setLabel('Gerenciar botões').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
