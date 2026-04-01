@@ -257,8 +257,13 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return i.reply({ content: 'Enviado!', ephemeral: true });
       }
 
-      if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
+      // 🔥 CAMPOS
+      if (['titulo','desc','imagem','thumb'].includes(id)) {
         return modalCampo(i, id);
+      }
+
+      if (id === 'autor') {
+        return modalAutor(i);
       }
 
       return i.update({ embeds: [build(atual)], components: menu(i.user.id) });
@@ -280,6 +285,18 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         return i.reply({ content: 'Botão salvo!', ephemeral: true });
       }
 
+      if (i.customId === 'autor_modal') {
+        atual.author = {
+          nome: i.fields.getTextInputValue('nome'),
+          icon: i.fields.getTextInputValue('icon')
+        };
+
+        return i.update({
+          embeds: [build(atual)],
+          components: editor()
+        });
+      }
+
       const val = i.fields.getTextInputValue('input');
 
       if (i.customId === 'titulo') atual.title = val;
@@ -298,10 +315,19 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 // ===== FUNÇÕES =====
 function build(e) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
+
   if (e.title) embed.setTitle(e.title);
-  if (e.description) embed.setDescription(e.description);
+  if (e.description) embed.setDescription(e.description || '‎');
   if (e.image) embed.setImage(e.image);
   if (e.thumbnail) embed.setThumbnail(e.thumbnail);
+
+  if (e.author) {
+    embed.setAuthor({
+      name: e.author.nome || '‎',
+      iconURL: e.author.icon || undefined
+    });
+  }
+
   return embed;
 }
 
@@ -334,7 +360,8 @@ function editor() {
       new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
@@ -348,6 +375,23 @@ function modalCampo(i, id) {
   modal.addComponents(
     new ActionRowBuilder().addComponents(
       new TextInputBuilder().setCustomId('input').setLabel('Digite').setStyle(TextInputStyle.Paragraph)
+    )
+  );
+
+  return i.showModal(modal);
+}
+
+function modalAutor(i) {
+  const modal = new ModalBuilder()
+    .setCustomId('autor_modal')
+    .setTitle('Autor');
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder().setCustomId('icon').setLabel('URL do ícone').setStyle(TextInputStyle.Short).setRequired(false)
     )
   );
 
