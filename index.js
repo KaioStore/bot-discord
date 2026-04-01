@@ -156,9 +156,8 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     let atual = session.embeds[session.atual];
 
-    if (interaction.isStringSelectMenu()) {
+   if (interaction.isStringSelectMenu()) {
 
-  // 🔥 SELECT DOS EMBEDS (o que você já tinha)
   if (interaction.customId === 'select') {
     session.atual = Number(interaction.values[0]);
 
@@ -168,7 +167,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     });
   }
 
-  // 🔥 SELECT DOS BOTÕES (NOVO)
   if (interaction.customId === 'select_button') {
     const index = Number(interaction.values[0]);
     session.botaoAtual = index;
@@ -194,7 +192,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     });
   }
 
-}
+// ❌ NÃO coloque nada aqui
 
     if (interaction.isButton()) {
       const id = interaction.customId;
