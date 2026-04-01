@@ -110,12 +110,8 @@ client.once('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 BOTÃO GLOBAL (CORRIGIDO)
-    if (
-      interaction.isButton() &&
-      interaction.customId.startsWith('msg_') &&
-      !interaction.customId.startsWith('msg__')
-    ) {
+    // 🔥 BOTÃO GLOBAL
+    if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
       const texto = interaction.customId.slice(4);
 
       return interaction.reply({
@@ -257,6 +253,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
+      // 🔥 ADD BOTÃO COM COR
       if (id === 'add_button') {
         const modal = new ModalBuilder()
           .setCustomId('criar_botao')
@@ -268,10 +265,84 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           ),
           new ActionRowBuilder().addComponents(
             new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor: azul, verde, cinza').setStyle(TextInputStyle.Short).setRequired(false)
           )
         );
 
         return interaction.showModal(modal);
+      }
+
+      // 🔥 GERENCIAR BOTÕES
+      if (id === 'gerenciar_botoes') {
+        if (session.buttons.length === 0) {
+          return interaction.reply({ content: 'Nenhum botão criado.', ephemeral: true });
+        }
+
+        const rows = [];
+
+        session.buttons.forEach((btn, i) => {
+          rows.push(
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(`editar_btn_${i}`).setLabel(`Editar: ${btn.label}`).setStyle(ButtonStyle.Primary),
+              new ButtonBuilder().setCustomId(`delete_btn_${i}`).setLabel('Excluir').setStyle(ButtonStyle.Danger)
+            )
+          );
+        });
+
+        rows.push(
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('voltar_menu').setLabel('Voltar').setStyle(ButtonStyle.Secondary)
+          )
+        );
+
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: rows
+        });
+      }
+
+      if (id === 'voltar_menu') {
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
+      }
+
+      if (id.startsWith('editar_btn_')) {
+        const index = Number(id.split('_')[2]);
+        session.editando = index;
+
+        const btn = session.buttons[index];
+
+        const modal = new ModalBuilder()
+          .setCustomId('editar_botao')
+          .setTitle('Editar botão');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short).setValue(btn.label)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('valor').setLabel('Valor').setStyle(TextInputStyle.Paragraph).setValue(btn.valor)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor: azul, verde, cinza').setStyle(TextInputStyle.Short).setRequired(false)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
+      if (id.startsWith('delete_btn_')) {
+        const index = Number(id.split('_')[2]);
+        session.buttons.splice(index, 1);
+
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
       }
 
       if (id === 'enviar') {
@@ -290,7 +361,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
             );
           } else {
             row.addComponents(
-              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Primary).setCustomId(`msg_${btn.valor}`)
+              new ButtonBuilder().setLabel(btn.label).setStyle(btn.style || ButtonStyle.Primary).setCustomId(`msg_${btn.valor}`)
             );
           }
         });
@@ -304,6 +375,52 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         return interaction.followUp({ content: 'Enviado!', ephemeral: true });
       }
+    }
+
+    // ===== MODAL =====
+    if (interaction.isModalSubmit()) {
+
+      let atual = session.embeds[session.atual];
+
+      if (interaction.customId === 'criar_botao') {
+        const label = interaction.fields.getTextInputValue('label');
+        const valor = interaction.fields.getTextInputValue('valor');
+        let cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
+
+        let style = ButtonStyle.Secondary;
+        if (cor === 'azul') style = ButtonStyle.Primary;
+        if (cor === 'verde') style = ButtonStyle.Success;
+
+        session.buttons.push({ label, valor, style });
+
+        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
+      }
+
+      if (interaction.customId === 'editar_botao') {
+        const label = interaction.fields.getTextInputValue('label');
+        const valor = interaction.fields.getTextInputValue('valor');
+        let cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
+
+        let style = ButtonStyle.Secondary;
+        if (cor === 'azul') style = ButtonStyle.Primary;
+        if (cor === 'verde') style = ButtonStyle.Success;
+
+        session.buttons[session.editando] = { label, valor, style };
+
+        return interaction.reply({ content: 'Botão editado!', ephemeral: true });
+      }
+
+      const valor = interaction.fields.getTextInputValue('input');
+
+      if (interaction.customId === 'titulo') atual.title = valor;
+      if (interaction.customId === 'desc') atual.description = valor;
+      if (interaction.customId === 'imagem') atual.image = valor;
+      if (interaction.customId === 'thumb') atual.thumbnail = valor;
+
+      return interaction.update({
+        embeds: [montarEmbed(atual)],
+        components: gerarEditor()
+      });
     }
 
   } catch (err) {
@@ -350,6 +467,7 @@ function gerarMenu(userId) {
       new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('gerenciar_botoes').setLabel('Gerenciar botões').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
