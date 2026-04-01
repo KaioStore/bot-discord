@@ -1,7 +1,11 @@
 // 🔥 NÃO TRATADOS
-const { REST, Routes } = require('discord.js');
-process.on('uncaughtException', console.error);
-process.on('unhandledRejection', console.error);
+process.on('uncaughtException', (err) => {
+  console.error('Erro não tratado:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Promise rejeitada:', err);
+});
 
 const {
   Client,
@@ -24,110 +28,106 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
+// ===== CONFIG =====
 const TOKEN = process.env.TOKEN;
 const CANAL_AVALIACOES = '1411493010268753930';
 
+// ===== CLIENT =====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent // 🔥 ESSENCIAL
+    GatewayIntentBits.MessageContent
   ]
 });
 
 // ===== BANCO =====
-let db = { total: 427, pedidos: 458, embedsSalvos: {} };
-if (fs.existsSync('./db.json')) {
-  db = JSON.parse(fs.readFileSync('./db.json'));
-}
-const salvar = () => fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+let db;
 
-// ===== SESSÕES =====
+try {
+  if (fs.existsSync('./db.json')) {
+    db = JSON.parse(fs.readFileSync('./db.json', 'utf8'));
+  } else {
+    db = { total: 427, pedidos: 458 };
+  }
+} catch {
+  db = { total: 427, pedidos: 458 };
+}
+
+function salvar() {
+  fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
+}
+
+// ===== EMBED SYSTEM =====
 const embedSessions = {};
 
-// ===== READY + SLASH AUTO =====
-client.once('ready', async () => {
+// ===== READY =====
+client.on('ready', () => {
   console.log(`Logado como ${client.user.tag}`);
-
-  const rest = new REST({ version: '10' }).setToken(TOKEN);
-
-  await rest.put(
-    Routes.applicationCommands(client.user.id),
-    {
-      body: [
-        {
-          name: 'embed',
-          description: 'Painel de embed'
-        },
-        {
-          name: 'avaliar',
-          description: 'Enviar avaliação',
-          options: [
-            {
-              name: 'texto',
-              type: 3,
-              description: 'Digite a avaliação',
-              required: true
-            }
-          ]
-        }
-      ]
-    }
-  );
-
-  console.log('✅ Comandos registrados!');
 });
 
 // ===== INTERAÇÕES =====
-client.on('interactionCreate', async (i) => {
+client.on('interactionCreate', async (interaction) => {
   try {
 
-    // BOTÃO GLOBAL
-    if (i.isButton() && i.customId.startsWith('msg_')) {
-      return i.reply({ content: i.customId.slice(4), ephemeral: true });
-    }
+    // 🔥 BOTÃO CORRIGIDO (SEM "Mensagem")
+    if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
+      const session = embedSessions[interaction.user.id];
+      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
 
-    // EDITAR DEPOIS
-    if (i.isButton() && i.customId.startsWith('editarEmbed_')) {
-      const id = i.customId.split('_')[1];
-      if (!db.embedsSalvos[id]) return;
+      const index = Number(interaction.customId.split('_')[1]);
+      const btn = session.buttons[index];
 
-      embedSessions[i.user.id] = JSON.parse(JSON.stringify(db.embedsSalvos[id]));
+      if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
 
-      return i.reply({
-        content: 'Embed carregado!',
-        embeds: [build(embedSessions[i.user.id].embeds[0])],
-        components: menu(i.user.id),
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#2b2d31')
+            .setDescription(btn.valor)
+        ],
         ephemeral: true
       });
     }
 
-    const isAdmin = i.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
+    const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
-    // ===== COMANDOS =====
-    if (i.isChatInputCommand()) {
+    if (interaction.isChatInputCommand()) {
 
-      if (i.commandName === 'embed') {
-        embedSessions[i.user.id] = {
-          embeds: [{
-            title: 'Novo Embed',
-            description: 'Lembre-se que seu Embed não pode ser vazio!'
-          }],
-          atual: 0,
-          buttons: []
-        };
+      if (interaction.commandName === 'embed') {
 
-        return i.reply({
-          embeds: [build(embedSessions[i.user.id].embeds[0])],
-          components: menu(i.user.id),
+        if (!embedSessions[interaction.user.id]) {
+          embedSessions[interaction.user.id] = {
+            embeds: [{
+              title: 'Novo Embed',
+              description: 'Lembre-se que seu Embed não pode ser vazio!'
+            }],
+            atual: 0,
+            buttons: []
+          };
+        }
+
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#2b2d31')
+              .setTitle('Painel de Embed')
+              .setDescription('Use os botões abaixo')
+          ],
+          components: gerarMenu(interaction.user.id),
           ephemeral: true
         });
       }
 
-      if (i.commandName === 'avaliar') {
-        if (!isAdmin) return i.reply({ content: 'Só admin.', ephemeral: true });
+      if (interaction.commandName === 'avaliar') {
+        if (!isAdmin) {
+          return interaction.reply({ content: 'Só administradores.', ephemeral: true });
+        }
 
-        const texto = i.options.getString('texto');
+        const texto = interaction.options.getString('texto');
+
+        await interaction.deferReply({ ephemeral: true });
 
         db.total++;
         db.pedidos++;
@@ -138,7 +138,6 @@ client.on('interactionCreate', async (i) => {
           .setTitle('**Avaliação Recebida! 🖤**')
           .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1473016671240323103/Design_sem_nome.png')
           .setDescription(`**• Avaliação:** ${texto}
-
 **• Total de avaliações:** ${db.total}
 **• Pedido:** ${db.pedidos}
 
@@ -148,147 +147,195 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         const canal = client.channels.cache.get(CANAL_AVALIACOES);
         if (canal) canal.send({ embeds: [embed] });
 
-        return i.reply({ content: 'Avaliação enviada!', ephemeral: true });
+        return interaction.editReply('Avaliação enviada.');
       }
     }
 
-    const s = embedSessions[i.user.id];
-    if (!s) return;
+    const session = embedSessions[interaction.user.id];
+    if (!session) return;
 
-    let atual = s.embeds[s.atual];
+    let atual = session.embeds[session.atual];
 
-    // SELECT
-    if (i.isStringSelectMenu()) {
-      s.atual = Number(i.values[0]);
-      return i.update({ embeds: [build(s.embeds[s.atual])], components: menu(i.user.id) });
+    if (interaction.isStringSelectMenu()) {
+      session.atual = Number(interaction.values[0]);
+
+      return interaction.update({
+        embeds: [montarEmbed(session.embeds[session.atual])],
+        components: gerarMenu(interaction.user.id)
+      });
     }
 
-    // BOTÕES
-    if (i.isButton()) {
-      const id = i.customId;
+    if (interaction.isButton()) {
+      const id = interaction.customId;
 
       if (id === 'add_embed') {
-        s.embeds.push({});
-        s.atual = s.embeds.length - 1;
+        session.embeds.push({
+          title: 'Novo Embed',
+          description: 'Lembre-se que seu Embed não pode ser vazio!'
+        });
+        session.atual = session.embeds.length - 1;
+
+        return interaction.update({
+          embeds: [montarEmbed(session.embeds[session.atual])],
+          components: gerarMenu(interaction.user.id)
+        });
       }
 
       if (id === 'edit') {
-        return i.update({ embeds: [build(atual)], components: editor() });
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
       }
 
       if (id === 'voltar') {
-        return i.update({ embeds: [build(atual)], components: menu(i.user.id) });
-      }
-
-      if (id === 'salvar') {
-        const idSalvo = Date.now().toString();
-        db.embedsSalvos[idSalvo] = s;
-        salvar();
-        return i.reply({ content: `Salvo ID: ${idSalvo}`, ephemeral: true });
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarMenu(interaction.user.id)
+        });
       }
 
       if (id === 'add_button') {
-        return modalBotao(i, 'criar');
-      }
+        const modal = new ModalBuilder()
+          .setCustomId('criar_botao')
+          .setTitle('Adicionar botão');
 
-      if (id === 'gerenciar') {
-        if (!s.buttons.length) return i.reply({ content: 'Sem botões', ephemeral: true });
-
-        const rows = s.buttons.map((b, index) =>
+        modal.addComponents(
           new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`edit_btn_${index}`).setLabel(`Editar ${b.label}`).setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`del_btn_${index}`).setLabel('Excluir').setStyle(ButtonStyle.Danger)
+            new TextInputBuilder().setCustomId('label').setLabel('Nome do botão').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('cor').setLabel('Cor: azul, verde, cinza, preto').setStyle(TextInputStyle.Short).setRequired(false)
           )
         );
 
-        return i.update({ components: rows });
-      }
-
-      if (id.startsWith('edit_btn_')) {
-        s.editando = Number(id.split('_')[2]);
-        return modalBotao(i, 'editar');
-      }
-
-      if (id.startsWith('del_btn_')) {
-        const index = Number(id.split('_')[2]);
-        s.buttons.splice(index, 1);
+        return interaction.showModal(modal);
       }
 
       if (id === 'enviar') {
-        const idSalvo = Date.now().toString();
-        db.embedsSalvos[idSalvo] = s;
-        salvar();
-
         const rows = [];
         let row = new ActionRowBuilder();
 
-        s.buttons.forEach((b, i) => {
+        session.buttons.forEach((btn, i) => {
           if (i % 5 === 0 && i !== 0) {
             rows.push(row);
             row = new ActionRowBuilder();
           }
 
-          const styleMap = {
-            azul: ButtonStyle.Primary,
-            verde: ButtonStyle.Success,
-            cinza: ButtonStyle.Secondary,
-            preto: ButtonStyle.Secondary
-          };
-
-          if (b.valor.startsWith('http')) {
-            row.addComponents(new ButtonBuilder().setLabel(b.label).setStyle(ButtonStyle.Link).setURL(b.valor));
+          if (btn.valor.startsWith('http')) {
+            row.addComponents(
+              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor)
+            );
           } else {
-            row.addComponents(new ButtonBuilder().setLabel(b.label).setStyle(styleMap[b.cor] || ButtonStyle.Primary).setCustomId(`msg_${b.valor}`));
+            row.addComponents(
+              new ButtonBuilder().setLabel(btn.label).setStyle(btn.style).setCustomId(`msg_${i}`)
+            );
           }
         });
 
-        if (row.components.length) rows.push(row);
+        if (row.components.length > 0) rows.push(row);
 
-        rows.push(
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`editarEmbed_${idSalvo}`).setLabel('Editar depois').setStyle(ButtonStyle.Secondary)
-          )
-        );
-
-        await i.channel.send({
-          embeds: s.embeds.map(build),
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e)),
           components: rows
         });
 
-        return i.reply({ content: 'Enviado!', ephemeral: true });
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
 
-      if (['titulo','desc','imagem','thumb'].includes(id)) {
-        return modalCampo(i, id);
-      }
+      if (['titulo','desc','imagem','thumb','autor'].includes(id)) {
 
-      return i.update({ embeds: [build(atual)], components: menu(i.user.id) });
+        if (id === 'autor') {
+          const modal = new ModalBuilder()
+            .setCustomId('autor_modal')
+            .setTitle('Autor');
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder().setCustomId('nome').setLabel('Nome do autor').setStyle(TextInputStyle.Short).setValue(atual.author?.nome || '').setRequired(false)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder().setCustomId('icon').setLabel('URL da imagem').setStyle(TextInputStyle.Short).setValue(atual.author?.icon || '').setRequired(false)
+            )
+          );
+
+          return interaction.showModal(modal);
+        }
+
+        const modal = new ModalBuilder()
+          .setCustomId(id)
+          .setTitle(`Editar ${id}`);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('input')
+              .setLabel(
+                id === 'imagem' ? 'URL da imagem' :
+                id === 'thumb' ? 'URL da thumbnail' :
+                `Digite ${id}`
+              )
+              .setStyle(TextInputStyle.Paragraph)
+              .setValue(
+                id === 'titulo' ? (atual.title || '') :
+                id === 'desc' ? (atual.description || '') :
+                id === 'imagem' ? (atual.image || '') :
+                id === 'thumb' ? (atual.thumbnail || '') :
+                ''
+              )
+              .setRequired(false)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
     }
 
-    // MODAL
-    if (i.isModalSubmit()) {
+    if (interaction.isModalSubmit()) {
 
-      if (i.customId === 'criar' || i.customId === 'editar') {
-        const label = i.fields.getTextInputValue('nome');
-        const valor = i.fields.getTextInputValue('valor');
-        const cor = i.fields.getTextInputValue('cor');
+      let atual = session.embeds[session.atual];
 
-        const data = { label, valor, cor };
+      if (interaction.customId === 'criar_botao') {
+        const label = interaction.fields.getTextInputValue('label');
+        const valor = interaction.fields.getTextInputValue('valor');
+        let cor = interaction.fields.getTextInputValue('cor')?.toLowerCase();
 
-        if (i.customId === 'criar') s.buttons.push(data);
-        else s.buttons[s.editando] = data;
+        let style = ButtonStyle.Secondary;
+        if (cor === 'azul') style = ButtonStyle.Primary;
+        if (cor === 'verde') style = ButtonStyle.Success;
+        if (cor === 'preto') style = ButtonStyle.Secondary;
 
-        return i.reply({ content: 'Botão salvo!', ephemeral: true });
+        session.buttons.push({ label, valor, style });
+
+        return interaction.reply({ content: 'Botão criado!', ephemeral: true });
       }
 
-      const val = i.fields.getTextInputValue('input');
+      if (interaction.customId === 'autor_modal') {
+        const nome = interaction.fields.getTextInputValue('nome');
+        const icon = interaction.fields.getTextInputValue('icon');
 
-      if (i.customId === 'titulo') atual.title = val;
-      if (i.customId === 'desc') atual.description = val;
-      if (i.customId === 'imagem') atual.image = val;
-      if (i.customId === 'thumb') atual.thumbnail = val;
+        atual.author = { nome, icon };
 
-      return i.update({ embeds: [build(atual)], components: editor() });
+        return interaction.update({
+          embeds: [montarEmbed(atual)],
+          components: gerarEditor()
+        });
+      }
+
+      const valor = interaction.fields.getTextInputValue('input');
+
+      if (interaction.customId === 'titulo') atual.title = valor;
+      if (interaction.customId === 'desc') atual.description = valor;
+      if (interaction.customId === 'imagem') atual.image = valor;
+      if (interaction.customId === 'thumb') atual.thumbnail = valor;
+
+      return interaction.update({
+        embeds: [montarEmbed(atual)],
+        components: gerarEditor()
+      });
     }
 
   } catch (err) {
@@ -297,45 +344,58 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 });
 
 // ===== FUNÇÕES =====
-function build(e) {
+function montarEmbed(data) {
   const embed = new EmbedBuilder().setColor('#2b2d31');
-  if (e.title) embed.setTitle(e.title);
-  embed.setDescription(e.description || '‎');
-  if (e.image) embed.setImage(e.image);
-  if (e.thumbnail) embed.setThumbnail(e.thumbnail);
+
+  if (data.title) embed.setTitle(data.title);
+  embed.setDescription(data.description || '‎');
+
+  if (data.image) embed.setImage(data.image);
+  if (data.thumbnail) embed.setThumbnail(data.thumbnail);
+
+  if (data.author) {
+    embed.setAuthor({
+      name: data.author.nome || '‎',
+      iconURL: data.author.icon || undefined
+    });
+  }
+
   return embed;
 }
 
-function menu(id) {
-  const s = embedSessions[id];
+function gerarMenu(userId) {
+  const session = embedSessions[userId];
 
   return [
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('select')
-        .addOptions(s.embeds.map((_, i) => ({
-          label: `Embed ${i+1}`,
-          value: `${i}`
-        })))
+        .setPlaceholder('Selecionar embed')
+        .addOptions(
+          session.embeds.map((e,i)=>({
+            label:`Embed ${i+1}`,
+            value:`${i}`
+          }))
+        )
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('add_button').setLabel('Botão').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('gerenciar').setLabel('Gerenciar').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('salvar').setLabel('Salvar').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
     )
   ];
 }
 
-function editor() {
+function gerarEditor() {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('titulo').setLabel('Título').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('desc').setLabel('Descrição').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('imagem').setLabel('Imagem').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('thumb').setLabel('Thumb').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('autor').setLabel('Autor').setStyle(ButtonStyle.Secondary)
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('voltar').setLabel('Voltar').setStyle(ButtonStyle.Primary)
@@ -343,39 +403,10 @@ function editor() {
   ];
 }
 
-function modalCampo(i, id) {
-  const modal = new ModalBuilder().setCustomId(id).setTitle('Editar');
-
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('input').setLabel('Digite').setStyle(TextInputStyle.Paragraph)
-    )
-  );
-
-  return i.showModal(modal);
-}
-
-function modalBotao(i, tipo) {
-  const modal = new ModalBuilder().setCustomId(tipo).setTitle('Botão');
-
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('nome').setLabel('Nome').setStyle(TextInputStyle.Short)
-    ),
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
-    ),
-    new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('cor').setLabel('Cor (azul, verde, cinza, preto)').setStyle(TextInputStyle.Short).setRequired(false)
-    )
-  );
-
-  return i.showModal(modal);
-}
-
-// WEB
+// ===== WEB =====
 const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot online'));
 app.listen(PORT);
 
+// ===== LOGIN =====
 client.login(TOKEN);
