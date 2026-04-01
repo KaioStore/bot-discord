@@ -156,7 +156,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     let atual = session.embeds[session.atual];
 
-   if (interaction.isStringSelectMenu()) {
+  if (interaction.isStringSelectMenu()) {
 
   if (interaction.customId === 'select') {
     session.atual = Number(interaction.values[0]);
@@ -192,7 +192,7 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     });
   }
 
-// ❌ NÃO coloque nada aqui
+} // 🔥 FECHA AQUI!!!
 
     if (interaction.isButton()) {
       const id = interaction.customId;
@@ -350,7 +350,10 @@ if (id === 'excluir_botao') {
             )
         ),
         new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('voltar').setLabel('Voltar ao menu').setStyle(ButtonStyle.Secondary)
+          new ButtonBuilder()
+  .setCustomId('voltar')
+  .setLabel('Voltar ao menu')
+  .setStyle(ButtonStyle.Secondary)
         )
       ]
     });
