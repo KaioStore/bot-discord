@@ -315,5 +315,9 @@ app.listen(PORT, () => {
   console.log(`Web rodando na porta ${PORT}`);
 });
 
-// ===== LOGIN =====
+if (!TOKEN) {
+  console.error('TOKEN NÃO DEFINIDO!');
+  process.exit(1);
+}
+
 client.login(TOKEN);
