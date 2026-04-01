@@ -1,4 +1,5 @@
 // 🔥 NÃO TRATADOS
+const { REST, Routes } = require('discord.js');
 process.on('uncaughtException', console.error);
 process.on('unhandledRejection', console.error);
 
@@ -44,8 +45,40 @@ const salvar = () => fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
 const embedSessions = {};
 
 // ===== READY =====
-client.on('ready', () => {
+client.once('ready', async () => {
   console.log(`Logado como ${client.user.tag}`);
+
+  const rest = new REST({ version: '10' }).setToken(TOKEN);
+
+  try {
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      {
+        body: [
+          {
+            name: 'embed',
+            description: 'Painel de embed'
+          },
+          {
+            name: 'avaliar',
+            description: 'Enviar avaliação',
+            options: [
+              {
+                name: 'texto',
+                type: 3,
+                description: 'Digite a avaliação',
+                required: true
+              }
+            ]
+          }
+        ]
+      }
+    );
+
+    console.log('✅ Comandos registrados!');
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 // ===== INTERAÇÕES =====
