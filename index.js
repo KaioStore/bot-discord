@@ -100,7 +100,7 @@ client.once('ready', async () => {
       }
     );
 
-    console.log('Comandos atualizados!');
+    console.log('✅ Comandos atualizados!');
   } catch (err) {
     console.error(err);
   }
@@ -110,9 +110,9 @@ client.once('ready', async () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 BOTÕES DE MENSAGEM
+    // 🔥 BOTÃO GLOBAL (FUNCIONA SEM SESSION)
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
-      const texto = interaction.customId.split('msg_')[1];
+      const texto = interaction.customId.slice(4);
 
       return interaction.reply({
         content: texto,
@@ -127,16 +127,15 @@ client.on('interactionCreate', async (interaction) => {
 
       if (interaction.commandName === 'embed') {
 
-        if (!embedSessions[interaction.user.id]) {
-          embedSessions[interaction.user.id] = {
-            embeds: [{
-              title: 'Novo Embed',
-              description: 'Lembre-se que seu Embed não pode ser vazio!'
-            }],
-            atual: 0,
-            buttons: []
-          };
-        }
+        embedSessions[interaction.user.id] = {
+          embeds: [{
+            title: 'Novo Embed',
+            description: 'Lembre-se que seu Embed não pode ser vazio!'
+          }],
+          atual: 0,
+          buttons: [],
+          editando: null
+        };
 
         return interaction.reply({
           embeds: [
@@ -183,7 +182,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
     const session = embedSessions[interaction.user.id];
 
-    // 🔥 CORREÇÃO DO ERRO
     if (!session) {
       if (interaction.isButton() || interaction.isStringSelectMenu()) {
         return interaction.reply({
@@ -210,7 +208,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
-      // DELETE EMBED
       if (id === 'delete') {
         session.embeds.splice(session.atual, 1);
 
@@ -229,7 +226,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
-      // ADD EMBED
       if (id === 'add_embed') {
         session.embeds.push({
           title: 'Novo Embed',
@@ -244,7 +240,23 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
-      // GERENCIAR BOTÕES
+      if (id === 'add_button') {
+        const modal = new ModalBuilder()
+          .setCustomId('criar_botao')
+          .setTitle('Adicionar botão');
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('valor').setLabel('Mensagem ou link').setStyle(TextInputStyle.Paragraph)
+          )
+        );
+
+        return interaction.showModal(modal);
+      }
+
       if (id === 'gerenciar_botoes') {
         if (session.buttons.length === 0) {
           return interaction.reply({ content: 'Nenhum botão criado.', ephemeral: true });
@@ -269,7 +281,6 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         });
       }
 
-      // EDITAR BOTÃO
       if (id.startsWith('editar_btn_')) {
         const index = Number(id.split('_')[2]);
         session.editando = index;
@@ -282,25 +293,16 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
 
         modal.addComponents(
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('label')
-              .setLabel('Nome')
-              .setStyle(TextInputStyle.Short)
-              .setValue(btn.label)
+            new TextInputBuilder().setCustomId('label').setLabel('Nome').setStyle(TextInputStyle.Short).setValue(btn.label)
           ),
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('valor')
-              .setLabel('Mensagem ou link')
-              .setStyle(TextInputStyle.Paragraph)
-              .setValue(btn.valor)
+            new TextInputBuilder().setCustomId('valor').setLabel('Valor').setStyle(TextInputStyle.Paragraph).setValue(btn.valor)
           )
         );
 
         return interaction.showModal(modal);
       }
 
-      // EXCLUIR BOTÃO
       if (id.startsWith('delete_btn_')) {
         const index = Number(id.split('_')[2]);
         session.buttons.splice(index, 1);
@@ -309,6 +311,37 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
           embeds: [montarEmbed(atual)],
           components: gerarMenu(interaction.user.id)
         });
+      }
+
+      if (id === 'enviar') {
+        const rows = [];
+        let row = new ActionRowBuilder();
+
+        session.buttons.forEach((btn, i) => {
+          if (i % 5 === 0 && i !== 0) {
+            rows.push(row);
+            row = new ActionRowBuilder();
+          }
+
+          if (btn.valor.startsWith('http')) {
+            row.addComponents(
+              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Link).setURL(btn.valor)
+            );
+          } else {
+            row.addComponents(
+              new ButtonBuilder().setLabel(btn.label).setStyle(ButtonStyle.Primary).setCustomId(`msg_${btn.valor}`)
+            );
+          }
+        });
+
+        if (row.components.length > 0) rows.push(row);
+
+        await interaction.channel.send({
+          embeds: session.embeds.map(e => montarEmbed(e)),
+          components: rows
+        });
+
+        return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
     }
 
