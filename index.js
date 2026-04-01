@@ -18,7 +18,10 @@ const {
   StringSelectMenuBuilder,
   ModalBuilder,
   TextInputBuilder,
-  TextInputStyle
+  TextInputStyle,
+  REST,
+  Routes,
+  SlashCommandBuilder
 } = require('discord.js');
 
 const fs = require('fs');
@@ -595,6 +598,38 @@ function gerarEditor() {
 const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot online'));
 app.listen(PORT);
+
+const commands = [
+  new SlashCommandBuilder()
+    .setName('embed')
+    .setDescription('Abrir painel de embed'),
+
+  new SlashCommandBuilder()
+    .setName('avaliar')
+    .setDescription('Enviar avaliação')
+    .addStringOption(option =>
+      option.setName('texto')
+        .setDescription('Digite a avaliação')
+        .setRequired(true)
+    )
+].map(cmd => cmd.toJSON());
+
+const rest = new REST({ version: '10' }).setToken(TOKEN);
+
+(async () => {
+  try {
+    console.log('Registrando comandos...');
+
+    await rest.put(
+Routes.applicationGuildCommands('1485623307364466861', '1411478770824511652'),
+      { body: commands }
+    );
+
+    console.log('Comandos registrados!');
+  } catch (error) {
+    console.error(error);
+  }
+})();
 
 // ===== LOGIN =====
 client.login(TOKEN);
