@@ -451,25 +451,25 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 (async () => {
   try {
-    console.log('🧹 Limpando TUDO...');
+    console.log('🧹 Limpando comandos antigos...');
 
-    // ❌ REMOVE GLOBAL (principal causa do duplicado)
+    // REMOVE GLOBAL (causa duplicado)
     await rest.put(
       Routes.applicationCommands('1485623307364466861'),
       { body: [] }
     );
 
-    // ❌ REMOVE DO SERVIDOR
+    // REMOVE DO SERVIDOR
     await rest.put(
       Routes.applicationGuildCommands('1485623307364466861', '1411478770824511652'),
       { body: [] }
     );
 
-    console.log('✅ Tudo limpo!');
+    console.log('✅ Limpo!');
 
-    // ✅ REGISTRA SÓ 1 VEZ (NO SERVIDOR)
+    // REGISTRA CORRETAMENTE (1 VEZ SÓ)
     await rest.put(
-      Routes.applicationGuildCommands('1485623307364466861', 'SEU_GUILD_ID'),
+      Routes.applicationGuildCommands('1485623307364466861', '1411478770824511652'),
       { body: commands }
     );
 
