@@ -168,6 +168,23 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      if (id === 'clear_buttons') {
+
+  if (session.buttons.length === 0) {
+    return interaction.reply({
+      content: 'Não há botões para remover.',
+      ephemeral: true
+    });
+  }
+
+  session.buttons = [];
+
+  return interaction.reply({
+    content: 'Todos os botões foram removidos!',
+    ephemeral: true
+  });
+}
+
       if (id === 'delete') {
 
   if (session.embeds.length <= 1) {
@@ -401,11 +418,13 @@ function gerarMenu(userId) {
         )
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
+  new ButtonBuilder().setCustomId('add_embed').setLabel('Adicionar Embed').setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId('delete').setLabel('Excluir').setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId('add_button').setLabel('Adicionar botão').setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId('clear_buttons').setLabel('Remover botões').setStyle(ButtonStyle.Danger),
+  new ButtonBuilder().setCustomId('edit').setLabel('Editar').setStyle(ButtonStyle.Secondary),
+  new ButtonBuilder().setCustomId('enviar').setLabel('Enviar').setStyle(ButtonStyle.Success)
+)
     )
   ];
 }
