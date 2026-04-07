@@ -143,7 +143,7 @@ client.on('interactionCreate', async (interaction) => {
         const embed = new EmbedBuilder()
           .setColor('#2b2d31')
           .setTitle('**Avaliação Recebida! 🖤**')
-          .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1491209011570278440/foto_de_perfil_20260407190636.png?ex=69d6dc1d&is=69d58a9d&hm=d39dcff51849e1922462a9f56fa700f834fbb6dd40bef57759c0ed50ae95e073&/Design_sem_nome.png')
+          .setThumbnail('https://cdn.discordapp.com/attachments/1411723762260508702/1491216538177503313/Design_sem_nome.png?ex=69d6e320&is=69d591a0&hm=e23a4d3b84e0862162e5b70505a4069d3d08a5e4f3d94b3139ac9df63e690b47&/foto_de_perfil_20260407190636.png?ex=69d6dc1d&is=69d58a9d&hm=d39dcff51849e1922462a9f56fa700f834fbb6dd40bef57759c0ed50ae95e073&/Design_sem_nome.png')
           .setDescription(`**• Avaliação:** ${texto}
 **• Total de avaliações:** ${db.total}
 **• Pedido:** ${db.pedidos}
