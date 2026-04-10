@@ -71,25 +71,89 @@ client.on('ready', () => {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // 🔥 BOTÃO CORRIGIDO (SEM "Mensagem")
-    if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
-      const session = embedSessions[interaction.user.id];
-      if (!session) return interaction.reply({ content: 'Sessão perdida.', ephemeral: true });
+    // ===== EDITAR EMBED (APPS) =====
+if (interaction.isMessageContextMenuCommand()) {
 
-      const index = Number(interaction.customId.split('_')[1]);
-      const btn = session.buttons[index];
+  if (interaction.commandName === 'Editar Embed') {
 
-      if (!btn) return interaction.reply({ content: 'Botão inválido.', ephemeral: true });
+    const dono = '123456789012345678';
 
+    if (interaction.user.id !== dono) {
       return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#2b2d31')
-            .setDescription(btn.valor)
-        ],
+        content: 'Você não pode usar isso.',
         ephemeral: true
       });
     }
+
+    const msg = interaction.targetMessage;
+
+    if (!msg.embeds[0]) {
+      return interaction.reply({
+        content: 'Essa mensagem não tem embed.',
+        ephemeral: true
+      });
+    }
+
+    const embed = msg.embeds[0];
+
+    const modal = new ModalBuilder()
+      .setCustomId(`edit_${msg.id}`)
+      .setTitle('Editar Embed');
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('titulo')
+          .setLabel('Título')
+          .setStyle(TextInputStyle.Short)
+          .setValue(embed.title || '')
+          .setRequired(false)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('desc')
+          .setLabel('Descrição')
+          .setStyle(TextInputStyle.Paragraph)
+          .setValue(embed.description || '')
+          .setRequired(false)
+      )
+    );
+
+    return interaction.showModal(modal);
+  }
+}
+
+    // 🔥 BOTÃO CORRIGIDO (SEM "Mensagem")
+    if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
+
+  if (!embedSessions[interaction.user.id]) {
+    return interaction.reply({
+      content: 'Esse painel não está mais ativo.',
+      ephemeral: true
+    });
+  }
+
+  const session = embedSessions[interaction.user.id];
+
+  const index = Number(interaction.customId.split('_')[1]);
+  const btn = session.buttons[index];
+
+  if (!btn) {
+    return interaction.reply({
+      content: 'Botão inválido.',
+      ephemeral: true
+    });
+  }
+
+  return interaction.reply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor('#2b2d31')
+        .setDescription(btn.valor)
+    ],
+    ephemeral: true
+  });
+}
 
     const isAdmin = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
 
@@ -159,9 +223,10 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     }
 
     const session = embedSessions[interaction.user.id];
-    if (!session) return;
 
-    let atual = session.embeds[session.atual];
+if (!session) return; // 🔥 evita crash
+
+let atual = session.embeds[session.atual];
 
     if (interaction.isStringSelectMenu()) {
       session.atual = Number(interaction.values[0]);
@@ -285,9 +350,9 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
         if (row.components.length > 0) rows.push(row);
 
         await interaction.channel.send({
-          embeds: session.embeds.map(e => montarEmbed(e)),
-          components: rows
-        });
+  embeds: session.embeds.map(e => montarEmbed(e)),
+  components: rows.length ? rows : [] // 🔥 evita bug
+});
 
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
@@ -341,6 +406,38 @@ Esta avaliação foi registrada de forma **anônima**, devido ao sistema de bani
     }
 
     if (interaction.isModalSubmit()) {
+
+      // ===== SALVAR EDIÇÃO DO EMBED =====
+if (interaction.customId.startsWith('edit_')) {
+
+  const msgId = interaction.customId.split('_')[1];
+  let msg;
+
+try {
+  msg = await interaction.channel.messages.fetch(msgId);
+} catch {
+  return interaction.reply({
+    content: 'Não consegui encontrar essa mensagem.',
+    ephemeral: true
+  });
+}
+
+  const titulo = interaction.fields.getTextInputValue('titulo');
+  const desc = interaction.fields.getTextInputValue('desc');
+
+  const embed = EmbedBuilder.from(msg.embeds[0])
+    .setTitle(titulo || null)
+    .setDescription(desc || null);
+
+  await msg.edit({
+    embeds: [embed]
+  });
+
+  return interaction.reply({
+    content: 'Embed atualizado!',
+    ephemeral: true
+  });
+}
 
       let atual = session.embeds[session.atual];
 
@@ -457,9 +554,10 @@ const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot online'));
 app.listen(PORT);
 
-const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandType } = require('discord.js');
 
 const commands = [
+
   new SlashCommandBuilder()
     .setName('embed')
     .setDescription('Abrir painel de embed'),
@@ -471,7 +569,13 @@ const commands = [
       option.setName('texto')
         .setDescription('Digite a avaliação')
         .setRequired(true)
-    )
+    ),
+
+  // 🔥 NOVO (RIO BOT STYLE)
+  new ContextMenuCommandBuilder()
+    .setName('Editar Embed')
+    .setType(ApplicationCommandType.Message)
+
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
