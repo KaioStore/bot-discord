@@ -59,6 +59,21 @@ function salvar() {
   fs.writeFileSync('./db.json', JSON.stringify(db, null, 2));
 }
 
+// ===== BANCO DE BOTÕES =====
+let botoesSalvos = {};
+
+try {
+  if (fs.existsSync('./botoes.json')) {
+    botoesSalvos = JSON.parse(fs.readFileSync('./botoes.json', 'utf8'));
+  }
+} catch {
+  botoesSalvos = {};
+}
+
+function salvarBotoes() {
+  fs.writeFileSync('./botoes.json', JSON.stringify(botoesSalvos, null, 2));
+}
+
 // ===== EMBED SYSTEM =====
 const embedSessions = {};
 
@@ -126,17 +141,17 @@ if (interaction.isMessageContextMenuCommand()) {
     // 🔥 BOTÃO CORRIGIDO (SEM "Mensagem")
     if (interaction.isButton() && interaction.customId.startsWith('msg_')) {
 
-  if (!embedSessions[interaction.user.id]) {
+  const botoes = botoesSalvos[interaction.message.id];
+
+  if (!botoes) {
     return interaction.reply({
-      content: 'Esse painel não está mais ativo.',
+      content: 'Esse botão não está disponível.',
       ephemeral: true
     });
   }
 
-  const session = embedSessions[interaction.user.id];
-
   const index = Number(interaction.customId.split('_')[1]);
-  const btn = session.buttons[index];
+  const btn = botoes[index];
 
   if (!btn) {
     return interaction.reply({
@@ -349,10 +364,14 @@ let atual = session.embeds[session.atual];
 
         if (row.components.length > 0) rows.push(row);
 
-        await interaction.channel.send({
+        const msg = await interaction.channel.send({
   embeds: session.embeds.map(e => montarEmbed(e)),
-  components: rows.length ? rows : [] // 🔥 evita bug
+  components: rows.length ? rows : []
 });
+
+// 🔥 salva os botões no arquivo
+botoesSalvos[msg.id] = session.buttons;
+salvarBotoes();
 
         return interaction.reply({ content: 'Enviado!', ephemeral: true });
       }
