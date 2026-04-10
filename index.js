@@ -91,14 +91,12 @@ if (interaction.isMessageContextMenuCommand()) {
 
   if (interaction.commandName === 'Editar Embed') {
 
-    const dono = '123456789012345678';
-
-    if (interaction.user.id !== dono) {
-      return interaction.reply({
-        content: 'Você não pode usar isso.',
-        ephemeral: true
-      });
-    }
+    if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+  return interaction.reply({
+    content: 'Você não pode usar isso.',
+    ephemeral: true
+  });
+}
 
     const msg = interaction.targetMessage;
 
